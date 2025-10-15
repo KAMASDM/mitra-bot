@@ -1,3 +1,22 @@
+# Dependencies
+node_modules
+/.pnp
+.pnp.js
+
+# Production Build
+dist
+dist-ssr
+build
+*.local
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# DO NOT ignore .env.example - it's a template for developers
+
 # Logs
 logs
 *.log
@@ -7,13 +26,17 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-.env
-.env.*.local
-.env.example
+# Testing
+coverage
+.nyc_output
+*.lcov
+
+# Firebase
+.firebase/
+.firebaserc
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
 
 # Editor directories and files
 .vscode/*
@@ -25,3 +48,32 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Cache
+.cache
+.parcel-cache
+.eslintcache
+
+# Debug
+.vscode/launch.json
+debug.log
