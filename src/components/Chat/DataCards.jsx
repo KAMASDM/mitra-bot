@@ -4,41 +4,41 @@ import { CheckBadgeIcon, EyeIcon, ClockIcon as ClockOutline, ChevronDownIcon, Ch
 
 const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   // Map fields from your actual database structure
   const firstName = professional.first_name || '';
   const lastName = professional.last_name || '';
   const name = `${firstName} ${lastName}`.trim() || professional.username || 'Professional';
-  
+
   const biography = professional.biography || '';
   const education = professional.educational_qualification || '';
   const experience = professional.years_of_experience || 0;
   const address = professional.address || 'Location not specified';
   const hourlyRate = professional.hourly_rate || 0;
   const sessionDuration = professional.session_duration || 60;
-  
+
   // Verification status
-  const verified = professional.verification_status === 'VERIFIED' || 
-                   professional.professionalStatus === 'verified';
-  
+  const verified = professional.verification_status === 'VERIFIED' ||
+    professional.professionalStatus === 'verified';
+
   // Contact information
   const phone = professional.phone || '';
   const email = professional.email || '';
-  
+
   // Availability
   const isAvailableOnline = professional.is_available_online || false;
   const isAvailableInPerson = professional.is_available_in_person || false;
   const hasAvailableSlots = isAvailableOnline || isAvailableInPerson;
-  
+
   // Languages
   const languages = professional.languages_spoken || '';
-  
+
   // Additional fields for expanded view
   const specialization = professional.specialization || '';
   const professionalTypeLabel = professional.professional_type_label || professional.professional_type_id || '';
   const clinicName = professional.clinic_name || '';
   const consultationMode = professional.consultation_mode || '';
-  const availableSlots = professional.available_slots || [];
+  const availability = professional.availableSlots || professional.slots || [];
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 hover:border-primary-300 hover:shadow-md transition-all duration-200">
@@ -52,7 +52,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
               <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 shadow-sm">
                 {name.charAt(0).toUpperCase()}
               </div>
-              
+
               {/* Name & Education - Compact */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-0.5">
@@ -175,7 +175,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
                 <p className="text-sm font-semibold text-gray-900">{experience} years</p>
               </div>
             )}
-            
+
             {sessionDuration && (
               <div className="bg-gray-50 rounded-lg p-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -261,7 +261,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
               </div>
               <div className="space-y-2">
                 {phone && (
-                  <a 
+                  <a
                     href={`tel:${phone}`}
                     className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors"
                   >
@@ -270,7 +270,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
                   </a>
                 )}
                 {email && (
-                  <a 
+                  <a
                     href={`mailto:${email}`}
                     className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors"
                   >
@@ -316,7 +316,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
                   <ChevronDownIcon className="h-4 w-4" />
                 </button>
                 {phone && (
-                  <a 
+                  <a
                     href={`tel:${phone}`}
                     className="px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 border border-gray-200 transition-all flex items-center gap-1.5"
                   >
@@ -325,7 +325,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
                   </a>
                 )}
                 {email && (
-                  <a 
+                  <a
                     href={`mailto:${email}`}
                     className="px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 border border-gray-200 transition-all flex items-center gap-1.5"
                   >
@@ -406,7 +406,7 @@ const JobDetailsCard = ({ job, onApply, onClose }) => {
           <h2 className="text-xl font-bold text-primary-900 mb-1">{jobTitle}</h2>
           <p className="text-lg text-primary-700 font-medium mb-1">{company}</p>
           {department && <p className="text-sm text-primary-600 mb-2">{department}</p>}
-          
+
           <div className="flex items-center gap-4 text-sm text-primary-600">
             <div className="flex items-center gap-1">
               <MapPinIcon className="h-4 w-4" />
@@ -436,9 +436,9 @@ const JobDetailsCard = ({ job, onApply, onClose }) => {
             <div className="flex items-center gap-1 text-primary-700">
               <CurrencyRupeeIcon className="h-4 w-4" />
               <span>
-                {salaryMin > 0 && salaryMax > 0 
+                {salaryMin > 0 && salaryMax > 0
                   ? `${salaryMin.toLocaleString()} - ${salaryMax.toLocaleString()}`
-                  : salaryMin > 0 
+                  : salaryMin > 0
                     ? `From ${salaryMin.toLocaleString()}`
                     : `Up to ${salaryMax.toLocaleString()}`
                 }
@@ -491,7 +491,7 @@ const JobDetailsCard = ({ job, onApply, onClose }) => {
               </div>
             )}
           </div>
-          
+
           <div className="flex gap-3">
             <button
               onClick={() => onClose && onClose()}
@@ -514,7 +514,7 @@ const JobDetailsCard = ({ job, onApply, onClose }) => {
 
 const JobCard = ({ job, onApply, onViewDetails }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   // Handle the actual database field names based on your data structure
   const jobTitle = job.jobTitle || job.job_title || job.title || job.position || 'Job Position';
   const company = job.company || job.company_name || job.employer || 'Company';
@@ -558,7 +558,7 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
           )}
         </div>
       </div>
-      
+
       {/* Collapsed View - Essential Info */}
       {!isExpanded && (
         <>
@@ -567,11 +567,11 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
               <MapPinIcon className="h-4 w-4 text-primary-500" />
               <span className="font-medium">{location}</span>
             </div>
-            
+
             <span className="bg-primary-100 text-primary-800 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">
               {jobType}
             </span>
-            
+
             <span className="bg-secondary-100 text-secondary-800 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">
               {experience}
             </span>
@@ -582,14 +582,14 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
               </span>
             ))}
           </div>
-          
+
           {(salaryMin > 0 || salaryMax > 0) && (
             <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 mb-4">
               <div className="flex items-center gap-2">
                 <CurrencyRupeeIcon className="h-6 w-6 text-green-600" />
                 <div>
                   <span className="text-2xl font-bold text-green-600">
-                    {salaryMin > 0 && salaryMax > 0 
+                    {salaryMin > 0 && salaryMax > 0
                       ? `${salaryMin.toLocaleString()} - ${salaryMax.toLocaleString()}`
                       : salaryMin > 0 ? `${salaryMin.toLocaleString()}+` : `Up to ${salaryMax.toLocaleString()}`
                     }
@@ -601,7 +601,7 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
           )}
         </>
       )}
-      
+
       {/* Expanded View - Full Details */}
       {isExpanded && (
         <div className="space-y-4 animate-slideDown">
@@ -614,7 +614,7 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
               <p className="text-sm text-primary-700 leading-relaxed whitespace-pre-line">{jobDescription}</p>
             </div>
           )}
-          
+
           {/* Requirements */}
           {requirements && (
             <div className="p-4 bg-white rounded-xl border border-green-200 shadow-sm">
@@ -624,20 +624,20 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
               <p className="text-sm text-primary-700 leading-relaxed whitespace-pre-line">{requirements}</p>
             </div>
           )}
-          
+
           {/* Work Details Grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-white rounded-xl border border-green-200 shadow-sm">
               <p className="text-xs text-primary-600 font-medium mb-1">Job Type</p>
               <p className="text-base font-bold text-primary-900">{jobType}</p>
             </div>
-            
+
             <div className="p-3 bg-white rounded-xl border border-green-200 shadow-sm">
               <p className="text-xs text-primary-600 font-medium mb-1">Experience</p>
               <p className="text-base font-bold text-primary-900">{experience}</p>
             </div>
           </div>
-          
+
           {/* Location Details */}
           <div className="p-4 bg-white rounded-xl border border-green-200 shadow-sm">
             <h4 className="font-semibold text-primary-900 mb-2 flex items-center gap-2">
@@ -655,7 +655,7 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
               </div>
             )}
           </div>
-          
+
           {/* Salary Details */}
           {(salaryMin > 0 || salaryMax > 0) && (
             <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 shadow-sm">
@@ -665,9 +665,9 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
               </h4>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-green-600">
-                  ₹{salaryMin > 0 && salaryMax > 0 
+                  ₹{salaryMin > 0 && salaryMax > 0
                     ? `${salaryMin.toLocaleString()} - ${salaryMax.toLocaleString()}`
-                    : salaryMin > 0 
+                    : salaryMin > 0
                       ? `${salaryMin.toLocaleString()}+`
                       : `Up to ${salaryMax.toLocaleString()}`
                   }
@@ -676,7 +676,7 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
               </div>
             </div>
           )}
-          
+
           {/* Benefits */}
           {benefits && (
             <div className="p-4 bg-white rounded-xl border border-green-200 shadow-sm">
@@ -686,7 +686,7 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
               <p className="text-sm text-primary-700 leading-relaxed whitespace-pre-line">{benefits}</p>
             </div>
           )}
-          
+
           {/* Application Details */}
           {(contactEmail || applicationDeadline) && (
             <div className="p-4 bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl border-2 border-primary-300 shadow-sm">
@@ -696,7 +696,7 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
               </h4>
               <div className="space-y-2">
                 {contactEmail && (
-                  <a 
+                  <a
                     href={`mailto:${contactEmail}`}
                     className="flex items-center gap-3 p-3 bg-white rounded-lg hover:bg-primary-100 transition-colors group"
                   >
@@ -724,7 +724,7 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
           )}
         </div>
       )}
-      
+
       {/* Action Buttons */}
       <div className="flex gap-3 mt-4">
         {/* <button
@@ -755,8 +755,8 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
 };
 
 const DataCards = ({ data, type, onAction }) => {
-  const [visibleCount, setVisibleCount] = React.useState(20);
-  
+  const [visibleCount, setVisibleCount] = useState(5);
+
   if (!data || data.length === 0) return null;
 
   const handleBook = (professional) => {
@@ -770,7 +770,7 @@ const DataCards = ({ data, type, onAction }) => {
   const handleViewDetails = (item) => {
     onAction('view_details', item);
   };
-  
+
   const handleLoadMore = () => {
     setVisibleCount(prev => Math.min(prev + 5, data.length));
   };
@@ -800,7 +800,7 @@ const DataCards = ({ data, type, onAction }) => {
           <div>
             <h3 className="font-semibold text-base text-gray-900">{getTitle()}</h3>
             <p className="text-xs text-gray-600">
-              {type === 'professionals' 
+              {type === 'professionals'
                 ? `Showing ${visibleCount} of ${data.length} verified ${data.length === 1 ? 'professional' : 'professionals'}`
                 : `Showing ${visibleCount} of ${data.length} ${data.length === 1 ? 'opportunity' : 'opportunities'}`
               }
@@ -830,7 +830,7 @@ const DataCards = ({ data, type, onAction }) => {
             onViewDetails={handleViewDetails}
           />
         ))}
-        
+
         {type === 'jobs' && visibleData.map((job, index) => (
           <JobCard
             key={job.id || index}
@@ -840,7 +840,7 @@ const DataCards = ({ data, type, onAction }) => {
           />
         ))}
       </div>
-      
+
       {/* Load More Button - Subtle */}
       {hasMore && (
         <div className="mt-3 text-center">

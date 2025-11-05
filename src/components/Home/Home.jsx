@@ -10,7 +10,7 @@ import ServiceOptionsCard from '../Services/ServiceOptionsCard';
 import WeatherCard from '../Common/WeatherCard';
 import NewsCard from '../Common/NewsCard';
 import chatbotService from '../../services/chatbotService';
-import { getProfessionalTypes } from '../../services/databaseService';
+import { getProfessionalTypes, getProfessionalAvailability } from '../../services/databaseService';
 
 const Home = () => {
   const [messages, setMessages] = useState([]);
@@ -43,7 +43,7 @@ const Home = () => {
         const types = await getProfessionalTypes();
         const map = types.reduce((acc, type) => {
           // acc[type.id] = type.title || type.label;
-           acc[type.label.toLowerCase()] = type;
+          acc[type.label.toLowerCase()] = type;
           return acc;
         }, {});
         setProfessionalTypesMap(map);
@@ -147,10 +147,73 @@ const Home = () => {
     try {
       switch (action) {
         case 'book':
-          addMessage(`I'd like to book an appointment with ${data.name}`);
-          const bookingResponse = await generateBotResponse(`Book appointment with ${data.name}`);
+          // addMessage(`I'd like to book an appointment with ${data.name}`);
+          // const bookingResponse = await generateBotResponse(`Book appointment with ${data.name}`);
+          // setIsTyping(false);
+          // addMessage(bookingResponse.text, 'bot', bookingResponse.quickReplies, bookingResponse.data);
+          const professional = data;
+
+          addMessage(`I'm checking available slots for ${professional.first_name || professional.last_name || 'the professional'}...`, 'bot');
+
+          // --- FETCH SLOTS LOGIC ---
+          // Determine a time range for fetching slots (e.g., next 7 days)
+          const today = new Date();
+          const nextWeek = new Date();
+          nextWeek.setDate(today.getDate() + 7);
+
+          // Assuming professional has a unique identifier like 'professional_id' or 'id'
+          const professionalId = professional.id || professional.professional_id || professional.uid;
+
+          if (!professionalId) {
+            throw new Error('Professional ID missing for booking.');
+          }
+
+          const availableSlots = await getProfessionalAvailability(
+            professionalId,
+            today,
+            nextWeek
+          );
+          // --- END FETCH SLOTS LOGIC ---
+
           setIsTyping(false);
-          addMessage(bookingResponse.text, 'bot', bookingResponse.quickReplies, bookingResponse.data);
+
+          if (availableSlots.length > 0) {
+            let slotsText = `📅 **Available Slots for ${professional.first_name || professional.last_name || 'Professional'}:**\n\n`;
+
+            availableSlots.forEach(slot => {
+              // Assuming slot.start_date is a Firebase Timestamp
+              const date = slot.start_date.toDate().toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+              slotsText += `• ${date} (${slot.title || 'Slot'})\n`;
+            });
+
+            slotsText += `\nClick on a slot to confirm your booking.`;
+
+            addMessage(
+              slotsText,
+              'bot',
+              availableSlots.slice(0, 3).map(slot => ({ // Show first 3 slots as quick replies
+                text: slot.start_date.toDate().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+                action: `book_slot_${slot.id}` // Use unique slot ID for action
+              })).concat([
+                { text: 'See more slots', action: 'see_more_slots' },
+                { text: 'Cancel booking', action: 'cancel_booking' }
+              ])
+            );
+          } else {
+            addMessage(
+              `I'm sorry, *${professional.first_name || professional.last_name || 'the professional'}* does not have any available slots for the next 7 days.`,
+              'bot',
+              [
+                { text: 'Contact them directly', action: `contact_${professionalId}` },
+                { text: 'Find another professional', action: 'find_another_professional' }
+              ]
+            );
+          }
           break;
 
         case 'apply':
@@ -223,6 +286,12 @@ const Home = () => {
           break;
         case 'mental_health':
           handleMentalHealthSearch();
+          break;
+        case 'legal_aid':
+          handleLegalSearch();
+          break;
+        case 'specialist_care':
+          handleDoctorSearch();
           break;
         case 'book_sharma':
         case 'book_patel':
@@ -574,7 +643,7 @@ const Home = () => {
         const doctorsWithTitles = doctors.map(doc => ({
           ...doc,
           // professional_type_label: professionalTypesMap[doc.professional_type_id] || 'Healthcare Professional'
-       professional_type_label: professionalTypesMap[doc.professional_type_id]?.title || 'Healthcare Professional'
+          professional_type_label: professionalTypesMap[doc.professional_type_id]?.title || 'Healthcare Professional'
         }));
         console.log('Doctors with titles:', doctorsWithTitles);
         addMessage(
@@ -631,7 +700,7 @@ const Home = () => {
         // ATTACH TITLE: professional_type_id ko title se map karein
         const counselorsWithTitles = counselors.map(doc => ({
           ...doc,
-          professional_type_label: professionalTypesMap[doc.professional_type_id]?.title  || 'Mental Health Professional'
+          professional_type_label: professionalTypesMap[doc.professional_type_id]?.title || 'Mental Health Professional'
         }));
 
         addMessage(
@@ -653,6 +722,61 @@ const Home = () => {
         [
           { text: 'Try again', action: 'mental_health' },
           // { text: 'Back to services', action: 'back_to_services' }
+        ]
+      );
+    }
+  };
+
+  const handleLegalSearch = async () => {
+    addMessage(
+      "I'm searching for legal aid and counselors in your area...",
+      'bot'
+    );
+
+    setIsTyping(true);
+
+    try {
+      const { getProfessionalsByCategory } = await import('../../services/databaseService');
+      const legalProfessionals = await getProfessionalsByCategory('legal');
+
+      console.log('Fetched legal professionals:', legalProfessionals);
+
+      setIsTyping(false);
+
+      if (legalProfessionals.length === 0) {
+        addMessage(
+          "I couldn't find any legal professionals at the moment. Please try again later or contact support.",
+          'bot',
+          [
+            { text: 'Try again', action: 'legal_aid' },
+            { text: 'Back to services', action: 'back_to_services' }
+          ]
+        );
+      } else {
+
+        const professionalsWithTitles = legalProfessionals.map(doc => ({
+          ...doc,
+          professional_type_label: professionalTypesMap[doc.professional_type_id]?.title || 'Legal Professional'
+        }));
+
+        addMessage(
+          `Found ${professionalsWithTitles.length} legal professionals offering aid. Click on any card below to view details or book a consultation.`,
+          'bot',
+          [
+            // { text: 'Filter by specialty', action: 'filter_legal_specialty' }
+          ],
+          professionalsWithTitles
+        );
+      }
+    } catch (error) {
+      console.error('Error fetching legal professionals:', error);
+      setIsTyping(false);
+      addMessage(
+        `I'm having trouble fetching legal professionals right now: ${error.message}. Please try again.`,
+        'bot',
+        [
+          { text: 'Try again', action: 'legal_aid' },
+          { text: 'Back to services', action: 'back_to_services' }
         ]
       );
     }
@@ -708,6 +832,12 @@ const Home = () => {
         break;
       case 'mental_health':
         handleMentalHealthSearch();
+        break;
+      case 'legal_aid':
+        handleLegalSearch();
+        break;
+      case 'specialist_care':
+        handleDoctorSearch();
         break;
       case 'pharmacy':
         handlePharmacySearch();
