@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { StarIcon, MapPinIcon, CurrencyRupeeIcon, ClockIcon, BuildingOfficeIcon, CalendarIcon, PhoneIcon, EnvelopeIcon, GlobeAltIcon, AcademicCapIcon, BriefcaseIcon } from '@heroicons/react/24/solid';
 import { CheckBadgeIcon, EyeIcon, ClockIcon as ClockOutline, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../../contexts/AuthContext';
 
-const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
+const ProfessionalCard = ({ professional, onBook, onViewDetails, currentUserId }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const professionalId = professional.id || professional.professional_id || professional.uid;
+  const isSelf = currentUserId && professionalId === currentUserId;
 
   // Map fields from your actual database structure
   const firstName = professional.first_name || '';
@@ -39,10 +43,26 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
   const clinicName = professional.clinic_name || '';
   const consultationMode = professional.consultation_mode || '';
   const availability = professional.availableSlots || professional.slots || [];
-
+  const hasSlots = Array.isArray(availability) && availability.length > 0;
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 hover:border-primary-300 hover:shadow-md transition-all duration-200">
       {/* Collapsed View - Essential Info */}
+        {availability && Array.isArray(availability) && availability.length > 0 && (
+        <div className="mb-4">
+          <p className="text-sm text-gray-600 mb-2">Available slots today:</p>
+          <div className="flex flex-wrap gap-1">
+            {availability.slice(0, 4).map((slot, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded"
+              >
+                {slot} {/* This should show the time string */}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {!isExpanded ? (
         <>
           {/* Header - Compact */}
@@ -78,7 +98,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
             {experience > 0 && (
               <div className="flex items-center gap-1">
                 <BriefcaseIcon className="h-3.5 w-3.5" />
-                <span>{experience}y</span>
+                <span>{experience} y</span>
               </div>
             )}
             <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -289,7 +309,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
         {!isExpanded ? (
           <>
             {/* Show Book Now button only if slots available */}
-            {hasAvailableSlots ? (
+            {hasSlots && !isSelf ? (
               <>
                 <button
                   onClick={() => onBook(professional)}
@@ -339,7 +359,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails }) => {
         ) : (
           /* Expanded view actions */
           <>
-            {hasAvailableSlots ? (
+            {hasSlots && !isSelf ? (
               <>
                 <button
                   onClick={() => onBook(professional)}
@@ -756,6 +776,7 @@ const JobCard = ({ job, onApply, onViewDetails }) => {
 
 const DataCards = ({ data, type, onAction }) => {
   const [visibleCount, setVisibleCount] = useState(5);
+  const { currentUser } = useAuth();
 
   if (!data || data.length === 0) return null;
 
@@ -828,6 +849,7 @@ const DataCards = ({ data, type, onAction }) => {
             professional={professional}
             onBook={handleBook}
             onViewDetails={handleViewDetails}
+            currentUserId={currentUser?.uid}
           />
         ))}
 

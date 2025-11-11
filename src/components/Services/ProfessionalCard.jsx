@@ -174,7 +174,7 @@ const ProfessionalCard = ({ professional, serviceType }) => {
   const isLGBTQFriendly = professional.sensitize || professional.isLGBTQFriendly || false;
   const availability = professional.availableSlots || professional.slots || [];
   const location = professional.address || professional.location || 'Location not specified';
-
+  const hasSlots = Array.isArray(availability) && availability.length > 0;
   return (
     <div className="bg-white rounded-lg shadow-sm border p-4 service-card hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-3">
@@ -233,12 +233,21 @@ const ProfessionalCard = ({ professional, serviceType }) => {
       )}
 
       <div className="flex space-x-2">
-        <button
-          onClick={handleBooking}
-          className="flex-1 bg-primary text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-primary/90"
-        >
-          Book Appointment
-        </button>
+        {hasSlots ? (
+          <button
+            onClick={handleBooking}
+            className="flex-1 bg-primary text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-primary/90"
+          >
+            Book Appointment
+          </button>
+        ) : (
+          <button
+            onClick={handleBooking} // Renamed for UI, but still uses handleBooking handler (could open a dedicated details view)
+            className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg text-sm font-medium hover:bg-gray-300"
+          >
+            View Details
+          </button>
+        )}
         <button
           onClick={handleContact}
           className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"

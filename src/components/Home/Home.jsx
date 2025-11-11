@@ -10,7 +10,7 @@ import ServiceOptionsCard from '../Services/ServiceOptionsCard';
 import WeatherCard from '../Common/WeatherCard';
 import NewsCard from '../Common/NewsCard';
 import chatbotService from '../../services/chatbotService';
-import { getProfessionalTypes, getProfessionalAvailability } from '../../services/databaseService';
+import { getProfessionalTypes, getProfessionalAvailability, createBooking, updateSlotStatus } from '../../services/databaseService';
 
 const Home = () => {
   const [messages, setMessages] = useState([]);
@@ -20,6 +20,8 @@ const Home = () => {
   const [showNewsCard, setShowNewsCard] = useState(true);
   const [professionalTypesMap, setProfessionalTypesMap] = useState({});
   const [inputText, setInputText] = useState('');
+  const [selectedProfessional, setSelectedProfessional] = useState(null);
+  const [availableSlotsMap, setAvailableSlotsMap] = useState({});
   const { t } = useLanguage();
   const { currentUser } = useAuth();
   const messagesEndRef = useRef(null);
@@ -42,8 +44,8 @@ const Home = () => {
       try {
         const types = await getProfessionalTypes();
         const map = types.reduce((acc, type) => {
-          // acc[type.id] = type.title || type.label;
-          acc[type.label.toLowerCase()] = type;
+          acc[type.id] = type.title || type.label;
+          // acc[type.label.toLowerCase()] = type;
           return acc;
         }, {});
         setProfessionalTypesMap(map);
@@ -68,15 +70,41 @@ const Home = () => {
     setMessages(prev => [...prev, newMessage]);
   };
 
+  const checkIfAvailableToday = async (professionalId) => {
+    if (!professionalId) return [];
+    try {
+      const today = new Date();
+      // Set the start of today and end of today for precise query
+      const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+      const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+
+      const availableSlots = await getProfessionalAvailability(
+        professionalId,
+        startOfToday,
+        endOfToday
+      );
+
+      // Filter out past slots, booked slots, and cancelled slots
+      const liveSlots = availableSlots.filter(slot => {
+        const slotTime = slot.start_date.toDate ? slot.start_date.toDate() : new Date(slot.start_date);
+        const isToday = slotTime.toDateString() === new Date().toDateString();
+        return isToday;
+      });
+
+      // Return the live, unbooked, and uncancelled slots
+      return liveSlots.map(slot => slot.start_date.toDate().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+    } catch (error) {
+      console.error(`Error checking availability for ${professionalId}:`, error);
+      return [];
+    }
+  };
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
 
     const userMessage = inputText.trim();
     setInputText('');
-
     // Add user message
     addMessage(userMessage);
-
     // Show typing indicator
     setIsTyping(true);
 
@@ -84,7 +112,6 @@ const Home = () => {
       // Process user message and generate intelligent bot response
       const botResponse = await generateBotResponse(userMessage);
       setIsTyping(false);
-
       // Add bot response with any additional data
       addMessage(botResponse.text, 'bot', botResponse.quickReplies, botResponse.data);
     } catch (error) {
@@ -147,15 +174,11 @@ const Home = () => {
     try {
       switch (action) {
         case 'book':
-          // addMessage(`I'd like to book an appointment with ${data.name}`);
-          // const bookingResponse = await generateBotResponse(`Book appointment with ${data.name}`);
-          // setIsTyping(false);
-          // addMessage(bookingResponse.text, 'bot', bookingResponse.quickReplies, bookingResponse.data);
           const professional = data;
-
+          setSelectedProfessional(professional);
+          setAvailableSlotsMap({});
           addMessage(`I'm checking available slots for ${professional.first_name || professional.last_name || 'the professional'}...`, 'bot');
 
-          // --- FETCH SLOTS LOGIC ---
           // Determine a time range for fetching slots (e.g., next 7 days)
           const today = new Date();
           const nextWeek = new Date();
@@ -168,28 +191,51 @@ const Home = () => {
             throw new Error('Professional ID missing for booking.');
           }
 
-          const availableSlots = await getProfessionalAvailability(
+          const allSlots = await getProfessionalAvailability(
             professionalId,
             today,
             nextWeek
           );
+
+          const availableSlots = allSlots.filter(slot => {
+            const isBookedOrCancelled = slot.is_booked || slot.is_cancelled;
+
+            // Assuming slot.start_date is a Firebase Timestamp
+            const slotTime = slot.start_date.toDate ? slot.start_date.toDate() : new Date(slot.start_date);
+            const isFuture = slotTime > new Date();
+
+            // Only return slots that are NOT booked, NOT cancelled, and in the FUTURE
+            return !isBookedOrCancelled && isFuture;
+          });
           // --- END FETCH SLOTS LOGIC ---
 
+          const slotsMap = availableSlots.reduce((acc, slot) => {
+            acc[slot.id] = slot;
+            return acc;
+          }, {});
+
+          setAvailableSlotsMap(slotsMap);
           setIsTyping(false);
 
           if (availableSlots.length > 0) {
             let slotsText = `📅 **Available Slots for ${professional.first_name || professional.last_name || 'Professional'}:**\n\n`;
 
-            availableSlots.forEach(slot => {
-              // Assuming slot.start_date is a Firebase Timestamp
-              const date = slot.start_date.toDate().toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit'
+            const groupedSlots = availableSlots.reduce((acc, slot) => {
+              const dateKey = slot.start_date.toDate().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+              if (!acc[dateKey]) {
+                acc[dateKey] = [];
+              }
+              acc[dateKey].push(slot);
+              return acc;
+            }, {});
+
+            Object.entries(groupedSlots).forEach(([date, slots]) => {
+              slots.forEach(slot => {
+                const time = slot.start_date.toDate().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                slotsText += `• ${date}, ${time} (${slot.title || 'Slot'})\n`;
               });
-              slotsText += `• ${date} (${slot.title || 'Slot'})\n`;
             });
+
 
             slotsText += `\nClick on a slot to confirm your booking.`;
 
@@ -248,8 +294,6 @@ const Home = () => {
     // Hide service options and news card after selection
     setShowServiceOptions(false);
     setShowNewsCard(false);
-    addMessage(option.text, 'user');
-
     // Add user message first
     setTimeout(() => {
       handleServiceSelection(option.action);
@@ -258,8 +302,11 @@ const Home = () => {
 
   const handleQuickReply = async (reply) => {
     // Add user's selection as a message
-    addMessage(reply.text);
 
+    if (reply.action.startsWith('book_slot_')) {
+      await handleSlotConfirmation(reply);
+      return;
+    }
     // Show typing indicator
     setIsTyping(true);
 
@@ -333,31 +380,106 @@ const Home = () => {
   };
 
   const handleSlotConfirmation = async (reply) => {
-    const timeSlot = reply.text;
+    if (!currentUser?.uid) {
+      toast.error('Please log in to confirm your booking.');
+      setIsTyping(false);
+      return;
+    }
+    // 1. Extract slotId from action (e.g., 'book_slot_BDMF6H8H')
+    const slotId = reply.action.replace('book_slot_', '');
+    const slot = availableSlotsMap[slotId];
+    const professional = selectedProfessional;
+
+    if (!slot || !professional || !currentUser?.uid) {
+      console.error('Step A: Missing data for booking confirmation:', { slot, professional, currentUser });
+      toast.error('Booking failed: Missing slot or professional data.');
+      setIsTyping(false);
+      return;
+    }
+    // 2. Prepare display names and date/time
+    const professionalName = professional.first_name || professional.last_name || 'Professional';
+    const slotTime = slot.start_date.toDate();
+    const formattedTime = slotTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const formattedDate = slotTime.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    const location = slot.location || professional.address || 'Location not specified';
+    const fee = professional.hourly_rate || slot.fee || 'Contact for fee';
+
     setIsTyping(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsTyping(false);
+    addMessage(`Attempting to book slot at ${formattedTime} on ${formattedDate}...`, 'bot');
 
-    addMessage(
-      `✅ **Appointment Confirmed!**\n\n` +
-      `📅 Date: Tomorrow (14 October 2025)\n` +
-      `🕒 Time: ${timeSlot}\n` +
-      `👨‍⚕️ Doctor: Dr. Sharma\n` +
-      `📍 Location: Health Clinic, Vadodara\n` +
-      `💰 Fee: ₹500\n\n` +
-      `📱 You'll receive SMS and app notifications.\n` +
-      `📋 Please bring your ID and any previous reports.\n\n` +
-      `Is there anything else I can help you with?`,
-      'bot',
-      [
-        { text: 'Add to calendar', action: 'add_calendar' },
-        { text: 'Get directions', action: 'get_directions' },
-        { text: 'Find another service', action: 'back_to_services' },
-        { text: 'That\'s all, thanks!', action: 'end_conversation' }
-      ]
-    );
+    try {
+      await updateSlotStatus(slotId, {
+        is_booked: true,
+        booked_by_uid: currentUser.uid, // Map this professional & user id       
+      });
+
+      // B. Create the formal booking record in the 'bookings' collection
+      const bookingRecord = {
+        slotId: slotId,
+        professionalId: professional.id,
+        clientId: currentUser.uid,
+        professionalName: professionalName,
+        clientName: currentUser.displayName || currentUser.email,
+        appointmentDate: slot.start_date, // Use the Timestamp from the slot
+        appointmentTime: formattedTime,
+        professionalType: professional.professional_type_label || professional.specialization || 'Consultation',
+        status: 'confirmed',
+        location: location,
+        fee: fee,
+        clientEmail: currentUser.email,
+        duration: slot.duration || 60,
+      };
+
+      const newBooking = await createBooking(bookingRecord);
+
+      // C. Final update to availabilitySlots with the real booking ID
+      await updateSlotStatus(slotId, {
+        is_booked: true, // Set to true
+        booked_by_uid: currentUser.uid, // Store the client's UID
+        booking_id: newBooking.id
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Delay for effect
+      setIsTyping(false);
+
+      addMessage(
+        `✅ **Appointment Confirmed!**\n\n` +
+        `📅 Date: ${formattedDate}\n` +
+        `🕒 Time: ${formattedTime}\n` +
+        `👨‍⚕️ Professional: ${professionalName}\n` +
+        `📍 Location: ${location}\n` +
+        `💰 Fee: ${typeof fee === 'number' ? `₹${fee}` : fee}\n\n` +
+        `Your Booking ID is: **${newBooking.id}**\n\n` +
+        `📱 You'll receive SMS and app notifications.\n` +
+        `📋 Please bring your ID and any previous reports.\n\n` +
+        `Is there anything else I can help you with?`,
+        'bot',
+        [
+          { text: 'Add to calendar', action: 'add_calendar' },
+          { text: 'Get directions', action: 'get_directions' },
+          { text: 'Find another service', action: 'back_to_services' },
+          { text: 'That\'s all, thanks!', action: 'end_conversation' }
+        ]
+      );
+
+      // Clean up state after successful booking
+      setSelectedProfessional(null);
+      setAvailableSlotsMap({});
+
+    } catch (error) {
+      console.error('Error in handleSlotConfirmation:', error);
+      setIsTyping(false);
+      // toast.error('Booking failed. Please try again or check console for details.');
+      addMessage(
+        `❌ I encountered an error while trying to confirm your appointment with ${professionalName}. Please try again later.`,
+        'bot',
+        [
+          { text: 'Try again', action: `book_slot_${slotId}` },
+          { text: 'Contact support', action: 'contact_support' }
+        ]
+      );
+    }
   };
-
   const handleJobApplication = async () => {
     setIsTyping(true);
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -626,25 +748,32 @@ const Home = () => {
       const doctors = await getProfessionalsByCategory('mbbs');
 
       console.log('Fetched doctors:', doctors);
+      const doctorsWithLiveSlotsPromises = doctors.map(async (doc) => {
+
+        const professionalId = doc.id;
+        const name = doc.first_name || doc.name || doc.displayName || 'Unknown Professional';
+        console.log(`DEBUG: Checking slots for Professional: ${name}, ID: ${professionalId}`);
+
+        const liveSlots = await checkIfAvailableToday(professionalId);
+        console.log(`DEBUG: Professional ${name} returned ${liveSlots.length} available slots.`);
+        return {
+          ...doc,
+          professional_type_label: professionalTypesMap[doc.professional_type_id]?.title || 'Healthcare Professional',
+          availableSlots: liveSlots,
+        };
+      });
+      const doctorsWithTitles = await Promise.all(doctorsWithLiveSlotsPromises);
 
       setIsTyping(false);
 
-      if (doctors.length === 0) {
+      if (doctorsWithTitles.length === 0) {
         addMessage(
           "I couldn't find any doctors at the moment. This might be a database issue. Please contact support.",
           'bot',
-          [
-            { text: 'Try again', action: 'general_doctor' },
-            // { text: 'Back to services', action: 'back_to_services' }
-          ]
+          [],
         );
       } else {
-        // ATTACH TITLE: professional_type_id ko title se map karein
-        const doctorsWithTitles = doctors.map(doc => ({
-          ...doc,
-          // professional_type_label: professionalTypesMap[doc.professional_type_id] || 'Healthcare Professional'
-          professional_type_label: professionalTypesMap[doc.professional_type_id]?.title || 'Healthcare Professional'
-        }));
+
         console.log('Doctors with titles:', doctorsWithTitles);
         addMessage(
           `Found ${doctorsWithTitles.length} healthcare professionals. Click on any card below to view details or book an appointment.`,
@@ -652,7 +781,7 @@ const Home = () => {
           [
             // { text: '← Back to Services', action: 'back_to_services' }
           ],
-          doctorsWithTitles // Pass mapped data
+          doctorsWithTitles
         );
       }
     } catch (error) {
@@ -813,9 +942,9 @@ const Home = () => {
     const serviceName = typeof service === 'string' ? service : service.name || service.text;
     const serviceId = typeof service === 'string' ? service : service.id || service.action;
 
-    if (serviceName) {
-      addMessage(serviceName);
-    }
+    // if (serviceName) {
+    //   addMessage(serviceName);
+    // }
 
     // Process the selected service
     setIsTyping(true);

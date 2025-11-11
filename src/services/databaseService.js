@@ -11,13 +11,14 @@ import {
   updateDoc,
   Timestamp,
   startAfter,
-  onSnapshot
+  onSnapshot,  
 } from 'firebase/firestore';
 import { db } from './firebase';
 
 const USERS_COLLECTION = 'users';
 const PROFESSIONALS_COLLECTION = 'professionals';
 const PROFESSIONAL_TYPES_COLLECTION = 'professional_types';
+const BOOKINGS_COLLECTION = 'bookings';
 
 const CATEGORY_TO_TYPE_ID_MAP = {
   'mbbs': '3',
@@ -294,7 +295,7 @@ export const createBooking = async (bookingData) => {
       updatedAt: Timestamp.now()
     };
 
-    const docRef = await addDoc(collection(db, 'bookings'), booking);
+    const docRef = await addDoc(collection(db, BOOKINGS_COLLECTION), booking);
     return { id: docRef.id, ...booking };
   } catch (error) {
     console.error('Error creating booking:', error);
@@ -403,6 +404,8 @@ export const getProfessionalAvailability = async (professionalId, startDate, end
     const q = query(
       collection(db, 'availabilitySlots'),
       where('professional_id', '==', professionalId),
+      // where('is_booked', '==', false),     
+      // where('is_cancelled', '==', false),
       where('start_date', '>=', startDate),
       where('start_date', '<=', endDate),
       orderBy('start_date', 'asc')
@@ -415,6 +418,20 @@ export const getProfessionalAvailability = async (professionalId, startDate, end
     }));
   } catch (error) {
     console.error('Error getting professional availability:', error);
+    throw error;
+  }
+};
+
+export const updateSlotStatus = async (slotId, statusUpdate) => {
+  try {
+    const slotRef = doc(db, 'availabilitySlots', slotId);
+    await updateDoc(slotRef, {
+      ...statusUpdate,
+      updatedAt: Timestamp.now()
+    });
+    return true;
+  } catch (error) {
+    console.error('Error updating slot status:', error);
     throw error;
   }
 };
