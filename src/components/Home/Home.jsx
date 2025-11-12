@@ -255,8 +255,8 @@ const Home = () => {
               `I'm sorry, *${professional.first_name || professional.last_name || 'the professional'}* does not have any available slots for the next 7 days.`,
               'bot',
               [
-                { text: 'Contact them directly', action: `contact_${professionalId}` },
-                { text: 'Find another professional', action: 'find_another_professional' }
+                // { text: 'Contact them directly', action: `contact_${professionalId}` },
+                // { text: 'Find another professional', action: 'find_another_professional' }
               ]
             );
           }
@@ -578,16 +578,12 @@ const Home = () => {
       "Great! I'll help you find job opportunities. Let me search for available positions...",
       'bot'
     );
-
     setIsTyping(true);
-
     try {
       // Fetch all active jobs from database
       const { searchJobs } = await import('../../services/databaseService');
       const jobs = await searchJobs({ limit: 50 });
-
       console.log('Fetched jobs:', jobs);
-
       setIsTyping(false);
 
       if (jobs.length === 0) {
@@ -739,7 +735,6 @@ const Home = () => {
       "I'm searching for doctors in your area...",
       'bot'
     );
-
     setIsTyping(true);
 
     try {
@@ -752,10 +747,10 @@ const Home = () => {
 
         const professionalId = doc.id;
         const name = doc.first_name || doc.name || doc.displayName || 'Unknown Professional';
-        console.log(`DEBUG: Checking slots for Professional: ${name}, ID: ${professionalId}`);
+        // console.log(`DEBUG: Checking slots for Professional: ${name}, ID: ${professionalId}`);
 
         const liveSlots = await checkIfAvailableToday(professionalId);
-        console.log(`DEBUG: Professional ${name} returned ${liveSlots.length} available slots.`);
+        // console.log(`DEBUG: Professional ${name} returned ${liveSlots.length} available slots.`);
         return {
           ...doc,
           professional_type_label: professionalTypesMap[doc.professional_type_id]?.title || 'Healthcare Professional',
@@ -972,6 +967,7 @@ const Home = () => {
         handlePharmacySearch();
         break;
       case 'pathology_lab':
+      case 'lab_tests':
         handlePathologySearch();
         break;
       default:
@@ -988,57 +984,168 @@ const Home = () => {
     }
   };
 
-  const handlePharmacySearch = () => {
+  // const handlePharmacySearch = () => {
+  //   addMessage(
+  //     `🏥 **Nearby Pharmacies with Discounts:**\n\n` +
+  //     `💊 **MedPlus Pharmacy**\n` +
+  //     `📍 2.5 km away\n` +
+  //     `💰 20% off on all medicines\n` +
+  //     `🚚 Free home delivery\n` +
+  //     `⭐ 4.8 rating\n\n` +
+  //     `💊 **Apollo Pharmacy**\n` +
+  //     `📍 1.8 km away\n` +
+  //     `💰 15% off + cashback\n` +
+  //     `🚚 Same day delivery\n` +
+  //     `⭐ 4.6 rating\n\n` +
+  //     `💊 **Local Community Pharmacy**\n` +
+  //     `📍 0.8 km away\n` +
+  //     `💰 25% off for community members\n` +
+  //     `🏳️‍🌈 LGBTQAI+ friendly\n` +
+  //     `⭐ 4.9 rating`,
+  //     'bot',
+  //     [
+  //       { text: 'Order from MedPlus', action: 'order_medplus' },
+  //       { text: 'Visit Community Pharmacy', action: 'visit_community' },
+  //       { text: 'Compare prices', action: 'compare_prices' },
+  //       { text: 'Need prescription help?', action: 'prescription_help' }
+  //     ]
+  //   );
+  // };
+
+  const handlePharmacySearch = async () => {
     addMessage(
-      `🏥 **Nearby Pharmacies with Discounts:**\n\n` +
-      `💊 **MedPlus Pharmacy**\n` +
-      `📍 2.5 km away\n` +
-      `💰 20% off on all medicines\n` +
-      `🚚 Free home delivery\n` +
-      `⭐ 4.8 rating\n\n` +
-      `💊 **Apollo Pharmacy**\n` +
-      `📍 1.8 km away\n` +
-      `💰 15% off + cashback\n` +
-      `🚚 Same day delivery\n` +
-      `⭐ 4.6 rating\n\n` +
-      `💊 **Local Community Pharmacy**\n` +
-      `📍 0.8 km away\n` +
-      `💰 25% off for community members\n` +
-      `🏳️‍🌈 LGBTQAI+ friendly\n` +
-      `⭐ 4.9 rating`,
-      'bot',
-      [
-        { text: 'Order from MedPlus', action: 'order_medplus' },
-        { text: 'Visit Community Pharmacy', action: 'visit_community' },
-        { text: 'Compare prices', action: 'compare_prices' },
-        { text: 'Need prescription help?', action: 'prescription_help' }
-      ]
+      "💊 I'm searching for pharmacies with discounts and community support...",
+      'bot'
     );
+
+    setIsTyping(true);
+
+    try {
+      const { getProfessionalsByCategory } = await import('../../services/databaseService');
+      const pharmacies = await getProfessionalsByCategory('legal'); // Use 'pharmacy' category
+
+      console.log('Fetched pharmacies:', pharmacies);
+
+      setIsTyping(false);
+
+      if (pharmacies.length === 0) {
+        addMessage(
+          "I couldn't find any pharmacies in our network at the moment. Please try again later or contact support.",
+          'bot',
+          [
+            { text: 'Try again', action: 'pharmacy' },
+          ]
+        );
+      } else {
+
+        const professionalsWithTitles = pharmacies.map(doc => ({
+          ...doc,
+          professional_type_label: professionalTypesMap[doc.professional_type_id]?.title || 'Pharmacy / Medicine Supplier'
+        }));
+
+        addMessage(
+          `Found ${professionalsWithTitles.length} discounted pharmacies. Click on any card below to view details or order online.`,
+          'bot',
+          [
+            // { text: 'Upload Prescription', action: 'upload_prescription' }
+          ],
+          professionalsWithTitles // Pass data to render cards
+        );
+      }
+    } catch (error) {
+      console.error('Error fetching pharmacies:', error);
+      setIsTyping(false);
+      addMessage(
+        `I'm having trouble fetching pharmacies right now: ${error.message}. Please try again.`,
+        'bot',
+        [
+          { text: 'Try again', action: 'pharmacy' },
+          { text: 'Back to services', action: 'back_to_services' }
+        ]
+      );
+    }
   };
 
-  const handlePathologySearch = () => {
+  // const handlePathologySearch = () => {
+  //   addMessage(
+  //     `🔬 **Pathology Labs Near You:**\n\n` +
+  //     `🏥 **DiagnosticPlus Lab**\n` +
+  //     `📍 3.2 km away\n` +
+  //     `💰 30% off on packages\n` +
+  //     `🏠 Home collection available\n` +
+  //     `⭐ 4.7 rating\n\n` +
+  //     `🏥 **HealthCheck Labs**\n` +
+  //     `📍 2.1 km away\n` +
+  //     `💰 LGBTQAI+ friendly pricing\n` +
+  //     `🚀 Reports in 24 hours\n` +
+  //     `⭐ 4.8 rating\n\n` +
+  //     `Which tests do you need?`,
+  //     'bot',
+  //     [
+  //       { text: 'Blood tests', action: 'blood_tests' },
+  //       { text: 'Health checkup package', action: 'health_package' },
+  //       { text: 'Hormone tests', action: 'hormone_tests' },
+  //       { text: 'Book home collection', action: 'home_collection' }
+  //     ]
+  //   );
+  // };
+
+  const handlePathologySearch = async () => {
     addMessage(
-      `🔬 **Pathology Labs Near You:**\n\n` +
-      `🏥 **DiagnosticPlus Lab**\n` +
-      `📍 3.2 km away\n` +
-      `💰 30% off on packages\n` +
-      `🏠 Home collection available\n` +
-      `⭐ 4.7 rating\n\n` +
-      `🏥 **HealthCheck Labs**\n` +
-      `📍 2.1 km away\n` +
-      `💰 LGBTQAI+ friendly pricing\n` +
-      `🚀 Reports in 24 hours\n` +
-      `⭐ 4.8 rating\n\n` +
-      `Which tests do you need?`,
-      'bot',
-      [
-        { text: 'Blood tests', action: 'blood_tests' },
-        { text: 'Health checkup package', action: 'health_package' },
-        { text: 'Hormone tests', action: 'hormone_tests' },
-        { text: 'Book home collection', action: 'home_collection' }
-      ]
+      "🔬 I'm searching for pathology labs and diagnostic centers in your area...",
+      'bot'
     );
+
+    setIsTyping(true);
+
+    try {
+      const { getProfessionalsByCategory } = await import('../../services/databaseService');
+      const labs = await getProfessionalsByCategory('pathology'); // Use 'pathology' category
+
+      console.log('Fetched pathology labs:', labs);
+
+      setIsTyping(false);
+
+      if (labs.length === 0) {
+        addMessage(
+          "I couldn't find any pathology labs at the moment. Please try again later or contact support.",
+          'bot',
+          [
+            // { text: 'Try again', action: 'pathology_lab' },
+            // { text: 'Back to services', action: 'back_to_services' }
+          ]
+        );
+      } else {
+
+        const professionalsWithTitles = labs.map(doc => ({
+          ...doc,
+          professional_type_label: professionalTypesMap[doc.professional_type_id]?.title || 'Pathology Lab / Diagnostic Center'
+        }));
+
+        addMessage(
+          `Found ${professionalsWithTitles.length} pathology labs and diagnostic centers. Click on any card below to view details or book a test.`,
+          'bot',
+          [
+            // { text: 'Compare Packages', action: 'compare_packages' }
+          ],
+          professionalsWithTitles // Pass data to render cards
+        );
+      }
+    } catch (error) {
+      console.error('Error fetching pathology labs:', error);
+      setIsTyping(false);
+      addMessage(
+        `I'm having trouble fetching pathology labs right now: ${error.message}. Please try again.`,
+        'bot',
+        [
+          { text: 'Try again', action: 'pathology_lab' },
+          { text: 'Back to services', action: 'back_to_services' }
+        ]
+      );
+    }
   };
+
+
 
   // ... (rest of the file content like handleJobSearch, handleSlotConfirmation, etc.)
 
