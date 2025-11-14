@@ -1,14 +1,14 @@
 import React from 'react';
-import { 
-  BriefcaseIcon, 
-  HeartIcon, 
-  ScaleIcon,
-  CurrencyDollarIcon,
-  BeakerIcon,
-  ShieldCheckIcon,
-  HomeModernIcon,
-  AcademicCapIcon
-} from '@heroicons/react/24/outline';
+// import { 
+//   BriefcaseIcon, 
+//   HeartIcon, 
+//   ScaleIcon,
+//   CurrencyDollarIcon,
+//   BeakerIcon,
+//   ShieldCheckIcon,
+//   HomeModernIcon,
+//   AcademicCapIcon
+// } from '@heroicons/react/24/outline';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 const ServiceOptionsCard = ({ onOptionSelect }) => {
@@ -26,7 +26,7 @@ const ServiceOptionsCard = ({ onOptionSelect }) => {
 
   return (
     <div className="space-y-3">
-      <div className="text-center mb-3">
+      <div className="text-center ">
         <p className="text-sm font-medium text-primary-700">{t('howCanIHelp')}</p>
       </div>
 

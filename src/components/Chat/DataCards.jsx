@@ -47,7 +47,7 @@ const ProfessionalCard = ({ professional, onBook, onViewDetails, currentUserId }
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 hover:border-primary-300 hover:shadow-md transition-all duration-200">
       {/* Collapsed View - Essential Info */}
-        {availability && Array.isArray(availability) && availability.length > 0 && (
+      {availability && Array.isArray(availability) && availability.length > 0 && (
         <div className="mb-4">
           <p className="text-sm text-gray-600 mb-2">Available slots today:</p>
           <div className="flex flex-wrap gap-1">
@@ -807,7 +807,7 @@ const DataCards = ({ data, type, onAction }) => {
 
   const visibleData = data.slice(0, visibleCount);
   const hasMore = visibleCount < data.length;
-
+  const serviceType = type === 'jobs' ? 'job_search' : 'general_service'; // This helps ProfessionalCard differentiate
   return (
     <div className="mt-3">
       {/* Header - Subtle and Clean */}
@@ -835,9 +835,9 @@ const DataCards = ({ data, type, onAction }) => {
           <span className="px-2 py-0.5 bg-white text-gray-700 rounded-md font-medium border border-gray-200">
             {type === 'professionals' ? '🏆 Top Rated' : '🚀 Latest'}
           </span>
-          <span className="px-2 py-0.5 bg-white text-gray-700 rounded-md font-medium border border-gray-200">
+          {/* <span className="px-2 py-0.5 bg-white text-gray-700 rounded-md font-medium border border-gray-200">
             🏳️‍🌈 Friendly
-          </span>
+          </span> */}
         </div>
       </div>
 
