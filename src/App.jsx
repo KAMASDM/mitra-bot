@@ -14,6 +14,7 @@ import Chat from './components/Chat/Chat';
 import News from './components/News/News';
 import Resources from './components/Resources/Resources';
 import Profile from './components/Profile/Profile';
+import Settings from './components/Settings/Settings';
 import Layout from './components/Layout/Layout';
 import SplashScreen from './components/Common/SplashScreen';
 import PWAInstallPrompt from './components/Common/PWAInstallPrompt';
@@ -110,6 +111,13 @@ function AppContent() {
             <ProtectedRoute>
               <Layout>
                 <Profile />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <Layout>
+                <Settings />
               </Layout>
             </ProtectedRoute>
           } />
