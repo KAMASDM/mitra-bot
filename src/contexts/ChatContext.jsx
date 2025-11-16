@@ -47,13 +47,13 @@ export const ChatProvider = ({ children }) => {
         await updateUserPresence(currentUser.uid, 'online');
         console.log('✅ User presence set to online');
 
-        // Subscribe to online users
+        // Subscribe to online users with role-based filtering
         unsubscribeOnlineUsers = subscribeToOnlineUsers((users) => {
           console.log('📥 Received online users update:', users.length, 'users');
           console.log('📥 Current user ID:', currentUser.uid);
           console.log('📥 Other users (excluding me):', users.filter(u => u.id !== currentUser.uid).length);
           setOnlineUsers(users);
-        });
+        }, currentUser.uid); // Pass currentUserId for role-based filtering
         
         // Load initial data
         const [connectionsData, requestsData, chatRoomsData] = await Promise.all([

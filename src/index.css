@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ensure body and html don't interfere with fixed positioning */
+html, body {
+  overflow-x: hidden;
+  position: relative;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -100,6 +106,7 @@
   min-height: 100vh;
   background: white;
   position: relative;
+  overflow-x: hidden;
 }
 
 /* Bottom navigation safe area */
@@ -135,4 +142,14 @@
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+}
+
+/* Hide scrollbar */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

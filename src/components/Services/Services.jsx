@@ -22,6 +22,10 @@ const Services = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [professionalTypesMap, setProfessionalTypesMap] = useState({});
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const resultsPerPage = 5;
 
 
   const [selectedProfessional, setSelectedProfessional] = useState(null);
@@ -68,6 +72,7 @@ const Services = () => {
     setSearchResults([]);
     setIsBookingStep(false); // Reset booking state
     setSelectedProfessional(null);
+    setCurrentPage(1); // Reset pagination
   }; //
 
   // --- NEW: Booking Functions ---
@@ -107,6 +112,7 @@ const Services = () => {
   const handleServiceSelection = async (serviceOption) => {
     setSelectedService(serviceOption);
     setSearchResults([]);
+    setCurrentPage(1); // Reset to page 1 on new search
     setLoading(true);
 
     try {
@@ -147,6 +153,9 @@ const Services = () => {
 
       if (results.length === 0) {
         toast.error('No results found. Try a different service.');
+      } else {
+        // Scroll to top when results load
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (error) {
       console.error('Error fetching service data:', error);
@@ -387,79 +396,164 @@ const Services = () => {
   };
 
   return (
-    <div className="p-4">
-      <div className="mb-6">
+    <div className="h-full flex flex-col">
+      {/* Header - Fixed within page - Hidden on desktop (shown in Layout) */}
+      <div className="flex-shrink-0 p-4 bg-white border-b border-gray-200 lg:hidden">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           {t('search')}
         </h1>
         <p className="text-gray-600">
-          Find the services and support you need
+          {t('findServices')}
         </p>
       </div>
 
-      {/* Conditional Rendering based on selectedService state */}
-      {!selectedService ? (
-        // SHOW SERVICE SELECTOR CHIPS
-        <div className="bg-white p-2 rounded-xl">
-          <ServiceOptionsCard onOptionSelect={handleServiceSelection} />
-        </div>
-      ) : (
-        // SHOW RESULTS OR BOOKING STEP
-        <>
-          {/* Selected Service Header/Context - MODIFIED TO MATCH IMAGE */}
-          <div className="mb-6 p-4 bg-primary/5 rounded-lg border-l-4 border-primary">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl">{selectedService.icon}</span>
-                <h2 className="text-lg font-semibold">{selectedService.text}</h2>
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mt-2">
-              Showing results for {selectedService.text} providers.
-            </p>
-          </div>
-
-          {isBookingStep ? (
-            renderBookingInterface() // Show booking interface if in booking step
-          ) : searchResults.length > 0 ? (
-            // Show search results list
-            <>
-              <DataCards
-                data={searchResults}
-                type={selectedService.action === 'job_search' ? 'jobs' : 'professionals'}
-                onAction={handleDataAction} // Pass action handler
-              />
-
-              {/* Back to Services Button at the bottom */}
-              <div className="mt-6 mb-20">
-                <button
-                  onClick={handleBackToSelector}
-                  className="flex items-center gap-2 px-4 py-2 border border-primary-200 text-primary-700 rounded-full hover:bg-gray-100 transition-colors shadow-sm text-sm font-medium"
-                >
-                  ← Back to Services
-                </button>
-              </div>
-            </>
-          ) : loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-gray-600">Searching for {selectedService.text}...</p>
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 pb-6 lg:p-0">
+          {/* Conditional Rendering based on selectedService state */}
+          {!selectedService ? (
+            // SHOW SERVICE SELECTOR CHIPS
+            <div className="bg-white lg:bg-transparent p-2 lg:p-0 rounded-xl">
+              <ServiceOptionsCard onOptionSelect={handleServiceSelection} />
             </div>
           ) : (
-            // No results found UI
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">🔍</div>
-              <p className="text-gray-600 mb-2">No results found for {selectedService.text}.</p>
-              <button
-                onClick={() => handleServiceSelection(selectedService)}
-                className="text-primary text-sm font-medium hover:underline"
-              >
-                Try again
-              </button>
-            </div>
+            // SHOW RESULTS OR BOOKING STEP
+            <>
+              {/* Selected Service Header/Context - MODIFIED TO MATCH IMAGE */}
+              <div className="mb-6 p-4 bg-primary/5 rounded-lg border-l-4 border-primary">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl">{selectedService.icon}</span>
+                    <h2 className="text-lg font-semibold">{selectedService.text}</h2>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  {t('showingResults')} {selectedService.text} {t('providers')}.
+                </p>
+              </div>
+
+              {isBookingStep ? (
+                renderBookingInterface() // Show booking interface if in booking step
+              ) : searchResults.length > 0 ? (
+                // Show search results list with pagination
+                <>
+                  {(() => {
+                    // Calculate pagination
+                    const indexOfLastResult = currentPage * resultsPerPage;
+                    const indexOfFirstResult = indexOfLastResult - resultsPerPage;
+                    const currentResults = searchResults.slice(indexOfFirstResult, indexOfLastResult);
+                    const totalPages = Math.ceil(searchResults.length / resultsPerPage);
+                    
+                    return (
+                      <>
+                        {/* Results count */}
+                        <div className="mb-4 text-sm text-gray-600">
+                          {t('showing')} {indexOfFirstResult + 1}-{Math.min(indexOfLastResult, searchResults.length)} {t('of')} {searchResults.length} {t('results')}
+                        </div>
+
+                        <DataCards
+                          data={currentResults}
+                          type={selectedService.action === 'job_search' ? 'jobs' : 'professionals'}
+                          onAction={handleDataAction} // Pass action handler
+                        />
+
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                          <div className="mt-6 flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                              disabled={currentPage === 1}
+                              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {t('previous')}
+                            </button>
+                            
+                            <div className="flex items-center gap-1">
+                              {(() => {
+                                const pages = [];
+                                const showPages = 5; // Show max 5 page numbers
+                                
+                                if (totalPages <= showPages) {
+                                  // Show all pages
+                                  for (let i = 1; i <= totalPages; i++) {
+                                    pages.push(i);
+                                  }
+                                } else {
+                                  // Smart pagination
+                                  if (currentPage <= 3) {
+                                    pages.push(1, 2, 3, 4, '...', totalPages);
+                                  } else if (currentPage >= totalPages - 2) {
+                                    pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                                  } else {
+                                    pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                                  }
+                                }
+                                
+                                return pages.map((page, index) => (
+                                  page === '...' ? (
+                                    <span key={`ellipsis-${index}`} className="px-2 text-gray-500">...</span>
+                                  ) : (
+                                    <button
+                                      key={page}
+                                      onClick={() => setCurrentPage(page)}
+                                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                                        currentPage === page
+                                          ? 'bg-primary-600 text-white'
+                                          : 'text-gray-700 hover:bg-gray-100'
+                                      }`}
+                                    >
+                                      {page}
+                                    </button>
+                                  )
+                                ));
+                              })()}
+                            </div>
+                            
+                            <button
+                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                              disabled={currentPage === totalPages}
+                              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {t('next')}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Back to Services Button */}
+                        <div className="mt-6 pb-4">
+                          <button
+                            onClick={handleBackToSelector}
+                            className="flex items-center gap-2 px-4 py-2 border border-primary-200 text-primary-700 rounded-full hover:bg-gray-100 transition-colors shadow-sm text-sm font-medium"
+                          >
+                            ← {t('backToServices')}
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </>
+              ) : loading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-gray-600">{t('searchingFor')} {selectedService.text}...</p>
+                </div>
+              ) : (
+                // No results found UI
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">🔍</div>
+                  <p className="text-gray-600 mb-2">{t('noResults')} {selectedService.text}.</p>
+                  <button
+                    onClick={() => handleServiceSelection(selectedService)}
+                    className="text-primary text-sm font-medium hover:underline"
+                  >
+                    {t('tryAgain')}
+                  </button>
+                </div>
+              )}
+            </>
           )}
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 };

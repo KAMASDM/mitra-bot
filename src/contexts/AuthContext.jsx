@@ -9,6 +9,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
+import { sendWelcomeEmail } from '../services/emailService';
 
 const AuthContext = createContext();
 
@@ -57,6 +58,19 @@ export const AuthProvider = ({ children }) => {
           status: 'active',
           created_at: createdAt
         });
+
+        // Send welcome email to new users
+        try {
+          await sendWelcomeEmail(
+            email,
+            displayName || 'Friend',
+            additionalData.userLanguage || 'en'
+          );
+          console.log('Welcome email sent successfully');
+        } catch (emailError) {
+          console.error('Failed to send welcome email:', emailError);
+          // Don't throw error - email failure shouldn't block registration
+        }
       } catch (error) {
         console.error('Error creating user profile:', error);
       }

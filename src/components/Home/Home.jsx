@@ -8,7 +8,8 @@ import TypingIndicator from '../Chat/TypingIndicator';
 // import ServiceSelector from '../Services/ServiceSelector';
 import ServiceOptionsCard from '../Services/ServiceOptionsCard';
 import WeatherCard from '../Common/WeatherCard';
-import NewsCard from '../Common/NewsCard';
+import HoroscopeCard from '../Common/HoroscopeCard';
+import MotivationCard from '../Common/MotivationCard';
 import chatbotService from '../../services/chatbotService';
 import { getProfessionalTypes, getProfessionalAvailability, createBooking, updateSlotStatus } from '../../services/databaseService';
 
@@ -17,7 +18,7 @@ const Home = () => {
   const [isTyping, setIsTyping] = useState(false);
   // const [showServiceSelector, setShowServiceSelector] = useState(false);
   const [showServiceOptions, setShowServiceOptions] = useState(true);
-  const [showNewsCard, setShowNewsCard] = useState(true);
+  const [showHoroscopeCard, setShowHoroscopeCard] = useState(true);
   const [professionalTypesMap, setProfessionalTypesMap] = useState({});
   const [inputText, setInputText] = useState('');
   const [selectedProfessional, setSelectedProfessional] = useState(null);
@@ -288,9 +289,9 @@ const Home = () => {
   };
 
   const handleServiceOptionSelect = (option) => {
-    // Hide service options and news card after selection
+    // Hide service options and horoscope card after selection
     setShowServiceOptions(false);
-    setShowNewsCard(false);
+    setShowHoroscopeCard(false);
     // Add user message first
     setTimeout(() => {
       handleServiceSelection(option.action);
@@ -519,7 +520,7 @@ const Home = () => {
     // Reset to initial homepage state
     setMessages([]);
     setShowServiceOptions(true);
-    setShowNewsCard(true);
+    setShowHoroscopeCard(true);
     setIsTyping(false);
 
     // Scroll to top to show the service options
@@ -1090,79 +1091,87 @@ const Home = () => {
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 pb-20">
-        {/* Weather Card - Show at the top */}
-        <div className="mb-4">
-          <WeatherCard />
-        </div>
-
-        {/* News Card - Show community updates only when no service selected */}
-        {showNewsCard && messages.length === 0 && (
-          <div className="mb-4">
-            <NewsCard />
-          </div>
-        )}
-
-        {/* Service Options Chips - Show when no conversation started */}
-        {showServiceOptions && messages.length === 0 && (
-          <div className="message-slide-in">
-            <ServiceOptionsCard onOptionSelect={handleServiceOptionSelect} />
-          </div>
-        )}
-
-        {/* Messages with reduced spacing when following weather card */}
-        <div className={messages.length > 0 ? 'space-y-4' : ''}>
-          {messages.map((message) => (
-            <div key={message.id} className="message-slide-in">
-              <MessageBubble message={message} onDataAction={handleDataAction} />
-              {message.quickReplies && (
-                <QuickReplies
-                  replies={message.quickReplies}
-                  onReplyClick={handleQuickReply}
-                />
-              )}
+      <div className="flex-1 overflow-y-auto p-4 pb-20 lg:pb-4">
+        {/* Desktop: Two Column Layout */}
+        <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+          {/* Left Column - Cards (Desktop) / Top (Mobile) */}
+          <div className="lg:col-span-1 space-y-4 mb-4 lg:mb-0">
+            {/* Weather Card */}
+            <div className="lg:sticky lg:top-0">
+              <WeatherCard />
             </div>
-          ))}
-        </div>
 
-        {isTyping && (
-          <div className="mt-4">
-            <TypingIndicator />
-          </div>
-        )}
-        {messages.length > 0 && (
-          <div className="mt-6 mb-4 flex ">
-            <button
-              onClick={handleBackToServices}
-              className="flex items-center gap-2 px-4 py-2 border border-primary-200 text-primary-700 rounded-full hover:bg-gray-100 transition-colors shadow-sm text-sm font-medium"
-            >
-              ← Back to Services
-            </button>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+            {/* Horoscope Card - Show daily horoscope only when no service selected */}
+            {showHoroscopeCard && messages.length === 0 && (
+              <div className="hidden lg:block">
+                <HoroscopeCard />
+              </div>
+            )}
 
-      {/* Message Input */}
-      <div className="fixed bottom-20 left-0 right-0 max-w-mobile mx-auto bg-white border-t border-gray-200 p-4">
-        <div className="flex items-center space-x-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={t('typeMessage') || 'Type a message...'}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            disabled={isTyping}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={!inputText.trim() || isTyping}
-            className="p-2 bg-primary text-white rounded-full hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            <PaperAirplaneIcon className="h-5 w-5" />
-          </button>
+            {/* Daily Motivation - Desktop sidebar */}
+            {messages.length === 0 && (
+              <div className="hidden lg:block">
+                <MotivationCard />
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Main Content (Desktop) / Below Cards (Mobile) */}
+          <div className="lg:col-span-2">
+            {/* Mobile: Show horoscope before services */}
+            {showHoroscopeCard && messages.length === 0 && (
+              <div className="mb-4 lg:hidden">
+                <HoroscopeCard />
+              </div>
+            )}
+
+            {/* Service Options Chips - Show when no conversation started */}
+            {showServiceOptions && messages.length === 0 && (
+              <div className="message-slide-in mb-4">
+                <ServiceOptionsCard onOptionSelect={handleServiceOptionSelect} />
+              </div>
+            )}
+
+            {/* Daily Motivation - Mobile only */}
+            {messages.length === 0 && (
+              <div className="mt-6 mb-4 message-slide-in lg:hidden">
+                <MotivationCard />
+              </div>
+            )}
+
+            {/* Messages with reduced spacing when following weather card */}
+            <div className={messages.length > 0 ? 'space-y-4' : ''}>
+              {messages.map((message) => (
+                <div key={message.id} className="message-slide-in">
+                  <MessageBubble message={message} onDataAction={handleDataAction} />
+                  {message.quickReplies && (
+                    <QuickReplies
+                      replies={message.quickReplies}
+                      onReplyClick={handleQuickReply}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {isTyping && (
+              <div className="mt-4">
+                <TypingIndicator />
+              </div>
+            )}
+            
+            {messages.length > 0 && (
+              <div className="mt-6 mb-4 flex ">
+                <button
+                  onClick={handleBackToServices}
+                  className="flex items-center gap-2 px-4 py-2 border border-primary-200 text-primary-700 rounded-full hover:bg-gray-100 transition-colors shadow-sm text-sm font-medium"
+                >
+                  ← Back to Services
+                </button>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
       </div>
 

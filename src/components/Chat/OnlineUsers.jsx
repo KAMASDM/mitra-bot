@@ -27,23 +27,38 @@ const OnlineUsers = ({ onUserSelect }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
+  const [currentUserIsProfessional, setCurrentUserIsProfessional] = useState(false);
+
+  // Check if current user is a professional
+  React.useEffect(() => {
+    const checkProfessionalStatus = async () => {
+      if (currentUser?.uid) {
+        const { checkIfUserIsProfessional } = await import('../../services/chatService');
+        const isProfessional = await checkIfUserIsProfessional(currentUser.uid);
+        setCurrentUserIsProfessional(isProfessional);
+        console.log(`👤 Current user is ${isProfessional ? 'a Professional' : 'a Regular User'}`);
+      }
+    };
+    checkProfessionalStatus();
+  }, [currentUser]);
 
   // Debug logging
   React.useEffect(() => {
     console.log('🔍 OnlineUsers component state:');
     console.log('  - Total online users:', onlineUsers.length);
     console.log('  - Current user ID:', currentUser?.uid);
-    console.log('  - Filtered count:', onlineUsers.filter(user => user.id !== currentUser?.uid).length);
-    console.log('  - Users:', onlineUsers.map(u => ({ id: u.id, name: u.displayName, status: u.status })));
-  }, [onlineUsers, currentUser]);
+    console.log('  - Current user is professional:', currentUserIsProfessional);
+    console.log('  - Filtered count:', onlineUsers.filter(u => u.id !== currentUser?.uid).length);
+    console.log('  - Users:', onlineUsers.map(u => ({ id: u.id, name: u.displayName, status: u.status, isProfessional: u.isProfessional })));
+  }, [onlineUsers, currentUser, currentUserIsProfessional]);
 
   const handleRefreshUsers = async () => {
     console.log('🔄 Manually refreshing online users...');
     const { getOnlineUsers } = await import('../../services/chatService');
     try {
-      const users = await getOnlineUsers();
+      const users = await getOnlineUsers(null, currentUser?.uid); // Pass currentUserId for role-based filtering
       console.log('📊 Manual refresh - fetched users:', users.length);
-      console.log('👥 Users:', users.map(u => ({ id: u.id, name: u.displayName, status: u.status, email: u.email })));
+      console.log('👥 Users:', users.map(u => ({ id: u.id, name: u.displayName, status: u.status, email: u.email, isProfessional: u.isProfessional })));
     } catch (error) {
       console.error('❌ Error refreshing:', error);
     }
@@ -174,9 +189,16 @@ const OnlineUsers = ({ onUserSelect }) => {
       {/* Header */}
       <div className="p-4 border-b border-primary-200 bg-gradient-to-r from-primary-600 to-secondary-600">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-royal font-semibold text-white">
-            Online Users
-          </h2>
+          <div>
+            <h2 className="text-lg font-royal font-semibold text-white">
+              {currentUserIsProfessional ? 'Online Clients' : 'Online Professionals'}
+            </h2>
+            <p className="text-xs text-white/70 mt-0.5">
+              {currentUserIsProfessional 
+                ? 'Users seeking support' 
+                : 'Verified service providers'}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleDebugAllUsers}
@@ -198,17 +220,14 @@ const OnlineUsers = ({ onUserSelect }) => {
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               <span className="text-sm font-medium text-white">
                 {onlineUsers.filter(u => u.id !== currentUser?.uid).length} 
-                {onlineUsers.length > 0 && (
-                  <span className="text-xs ml-1 opacity-80">(+You)</span>
-                )}
               </span>
             </div>
           </div>
         </div>
-        {/* Show current user status */}
+        {/* Show current user role */}
         <div className="mt-2 text-xs text-white/80 flex items-center gap-2">
           <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-          <span>You are online</span>
+          <span>You are {currentUserIsProfessional ? 'a Professional' : 'a User'} • Online</span>
         </div>
       </div>
 
@@ -276,19 +295,36 @@ const OnlineUsers = ({ onUserSelect }) => {
       {/* Online Users List */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-4">
-          <h3 className="text-xs font-semibold text-primary-600 uppercase tracking-wider mb-3">Available to Chat</h3>
+          <h3 className="text-xs font-semibold text-primary-600 uppercase tracking-wider mb-3">
+            {currentUserIsProfessional ? 'Available Clients' : 'Available Professionals'}
+          </h3>
           <div className="space-y-2">
             {onlineUsers
               .filter(user => user.id !== currentUser?.uid)
-              .map((user) => {
-                const isConnected = getUserConnectionStatus(user.id);
-                return (
-                  <div
-                    key={user.id}
-                    className="group flex items-center justify-between p-3 rounded-xl hover:bg-gradient-to-r hover:from-primary-50 hover:to-secondary-50 transition-all cursor-pointer border border-transparent hover:border-primary-200 hover:shadow-sm"
-                    onClick={() => handleConnectUser(user)}
-                  >
-                    <div className="flex items-center gap-3 flex-1">
+              .length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-2">
+                  {currentUserIsProfessional ? '👥' : '👨‍⚕️'}
+                </div>
+                <p className="text-sm text-gray-600">
+                  No {currentUserIsProfessional ? 'clients' : 'professionals'} online right now
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Check back later
+                </p>
+              </div>
+            ) : (
+              onlineUsers
+                .filter(user => user.id !== currentUser?.uid)
+                .map((user) => {
+                  const isConnected = getUserConnectionStatus(user.id);
+                  return (
+                    <div
+                      key={user.id}
+                      className="group flex items-center justify-between p-3 rounded-xl hover:bg-gradient-to-r hover:from-primary-50 hover:to-secondary-50 transition-all cursor-pointer border border-transparent hover:border-primary-200 hover:shadow-sm"
+                      onClick={() => handleConnectUser(user)}
+                    >
+                      <div className="flex items-center gap-3 flex-1">
                       <div className="relative flex-shrink-0">
                         {user.photoURL ? (
                           <img 
@@ -305,9 +341,16 @@ const OnlineUsers = ({ onUserSelect }) => {
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-primary-900 group-hover:text-primary-700 truncate">
-                          {user.displayName || 'Anonymous User'}
-                        </h4>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-primary-900 group-hover:text-primary-700 truncate">
+                            {user.displayName || 'Anonymous User'}
+                          </h4>
+                          {user.isProfessional && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex-shrink-0">
+                              Professional
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 text-xs">
                           <div className="flex items-center gap-1 text-primary-500">
                             <span>{getStatusEmoji(user.status)}</span>
@@ -341,24 +384,7 @@ const OnlineUsers = ({ onUserSelect }) => {
                     </div>
                   </div>
                 );
-              })}
-            
-            {onlineUsers.filter(user => user.id !== currentUser?.uid).length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <UserCircleIcon className="w-12 h-12 text-primary-400" />
-                </div>
-                <p className="text-primary-700 font-semibold mb-2">You're the only one here</p>
-                <p className="text-primary-500 text-sm px-8 mb-4">
-                  Other users will appear here when they come online
-                </p>
-                <div className="bg-primary-50 rounded-lg p-3 mx-4 border border-primary-100">
-                  <p className="text-xs text-primary-600 font-medium mb-1">💡 Tip:</p>
-                  <p className="text-xs text-primary-500">
-                    Open this app in another browser or share with friends to connect!
-                  </p>
-                </div>
-              </div>
+              })
             )}
           </div>
         </div>

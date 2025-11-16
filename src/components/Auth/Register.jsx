@@ -67,8 +67,18 @@ const Register = () => {
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">👋</span>
+            {/* Gazra Mitra Logo */}
+            <div className="w-20 h-20 bg-secondary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
+              <img 
+                src="/mitra.png" 
+                alt="Mitra Logo" 
+                className="w-12 h-12"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'block';
+                }}
+              />
+              <span className="text-3xl hidden">👋</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
               Join Gazra Mitra

@@ -51,13 +51,6 @@ const ServiceOptionsCard = ({ onOptionSelect }) => {
           </button>
         ))}
       </div>
-
-      {/* Quick tip */}
-      <div className="mt-3 p-2.5 bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg border border-primary-200">
-        <p className="text-xs text-primary-600 text-center">
-          💡 <span className="font-medium">{t('tipMessage')}</span>
-        </p>
-      </div>
     </div>
   );
 };

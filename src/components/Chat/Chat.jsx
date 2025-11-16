@@ -1,24 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChat } from '../../contexts/ChatContext';
-import OnlineUsers from './OnlineUsers';
-import ChatWindow from './ChatWindow';
-import { UserGroupIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { useProfessionalChat } from '../../contexts/ProfessionalChatContext';
+import CategoryChips from './CategoryChips';
+import ProfessionalList from './ProfessionalList';
+import MyChatsList from './MyChatsList';
+import PendingRequestsPanel from './PendingRequestsPanel';
+import ProfessionalChatWindow from './ProfessionalChatWindow';
+import { 
+  UserGroupIcon, 
+  ChatBubbleLeftRightIcon,
+  ClockIcon,
+  Squares2X2Icon 
+} from '@heroicons/react/24/outline';
 
 const Chat = () => {
   const { currentUser } = useAuth();
-  const { activeChat, onlineUsers, connectionRequests } = useChat();
-  const [showUsers, setShowUsers] = useState(true); // Always show users panel by default
+  const { 
+    selectedCategory, 
+    setSelectedCategory, 
+    isProfessional, 
+    loading: contextLoading,
+    refreshChatRooms 
+  } = useProfessionalChat();
+  
+  const [activeTab, setActiveTab] = useState('categories'); // 'categories', 'chats', 'requests'
+  const [activeChatRoom, setActiveChatRoom] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      // On desktop, always show users panel
-      if (!mobile) {
-        setShowUsers(true);
-      }
     };
 
     checkScreenSize();
@@ -27,18 +39,48 @@ const Chat = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // On mobile, show chat window when activeChat is selected
+  // Set default tab based on user role
   useEffect(() => {
-    if (isMobile && activeChat) {
-      setShowUsers(false);
+    if (isProfessional) {
+      setActiveTab('requests'); // Professionals see requests first
+    } else {
+      setActiveTab('categories'); // Users see categories first
     }
-  }, [activeChat, isMobile]);
+  }, [isProfessional]);
 
-  const handleBackToUsers = () => {
-    setShowUsers(true);
+  const handleCategorySelect = (categoryId) => {
+    setSelectedCategory(categoryId);
   };
 
-  const requestCount = connectionRequests.length;
+  const handleBackToCategories = () => {
+    setSelectedCategory(null);
+  };
+
+  const handleOpenChat = (chatRoom) => {
+    setActiveChatRoom(chatRoom);
+  };
+
+  const handleCloseChat = () => {
+    setActiveChatRoom(null);
+    refreshChatRooms();
+  };
+
+  const handleRequestResponded = async (chatRoomId) => {
+    // Refresh chat rooms and switch to chats tab
+    await refreshChatRooms();
+    setActiveTab('chats');
+  };
+
+  if (contextLoading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-white/90 backdrop-blur-sm">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-primary-600 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (
@@ -54,78 +96,95 @@ const Chat = () => {
     );
   }
 
+  // If chat window is open, show full screen chat
+  if (activeChatRoom) {
+    return (
+      <ProfessionalChatWindow 
+        chatRoom={activeChatRoom} 
+        onClose={handleCloseChat} 
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 top-16 bottom-20 bg-white/95 backdrop-blur-sm flex flex-col">
-      {/* Header with Mitra logo and navigation */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 text-white p-4 shadow-royal flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/mitra.png" alt="Mitra" className="w-8 h-8 rounded-full" />
             <div>
-              <h1 className="text-lg font-bold">Mitra Community</h1>
+              <h1 className="text-lg font-bold">Professional Connect</h1>
               <p className="text-xs text-primary-100">
-                {onlineUsers.filter(u => u.id !== currentUser?.uid).length > 0 
-                  ? `${onlineUsers.filter(u => u.id !== currentUser?.uid).length} ${onlineUsers.filter(u => u.id !== currentUser?.uid).length === 1 ? 'user' : 'users'} online`
-                  : 'Waiting for others to join...'
-                }
+                {isProfessional ? 'Manage your clients' : 'Find professionals'}
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Show notification badge for connection requests */}
-            {requestCount > 0 && (
-              <div className="bg-white/20 px-3 py-1 rounded-full">
-                <span className="text-sm font-medium">{requestCount} new request{requestCount > 1 ? 's' : ''}</span>
-              </div>
-            )}
-
-            {isMobile && !showUsers && (
-              <button
-                onClick={handleBackToUsers}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors relative"
-                title="Back to Users"
-              >
-                <UserGroupIcon className="w-5 h-5" />
-                {requestCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {requestCount}
-                  </span>
-                )}
-              </button>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Desktop: Side by side layout */}
-        {!isMobile ? (
-          <>
-            {/* Users Panel - Always visible on desktop */}
-            <div className="w-80 border-r border-primary-200 flex flex-col overflow-hidden">
-              <OnlineUsers />
-            </div>
+      {/* Tab Navigation */}
+      <div className="bg-white border-b border-gray-200 px-4 flex gap-1 overflow-x-auto">
+        {!isProfessional && (
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all ${
+              activeTab === 'categories'
+                ? 'text-primary-600 border-b-2 border-primary-600'
+                : 'text-gray-600 hover:text-primary-600'
+            }`}
+          >
+            <Squares2X2Icon className="w-5 h-5" />
+            <span>Find Professionals</span>
+          </button>
+        )}
 
-            {/* Chat Panel */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <ChatWindow />
-            </div>
-          </>
-        ) : (
-          /* Mobile: Toggle between views */
-          <>
-            {showUsers ? (
-              <div className="w-full flex flex-col overflow-hidden">
-                <OnlineUsers />
-              </div>
-            ) : (
-              <div className="w-full flex flex-col overflow-hidden">
-                <ChatWindow onClose={handleBackToUsers} />
-              </div>
-            )}
-          </>
+        <button
+          onClick={() => setActiveTab('chats')}
+          className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all ${
+            activeTab === 'chats'
+              ? 'text-primary-600 border-b-2 border-primary-600'
+              : 'text-gray-600 hover:text-primary-600'
+          }`}
+        >
+          <ChatBubbleLeftRightIcon className="w-5 h-5" />
+          <span>{isProfessional ? 'My Clients' : 'My Chats'}</span>
+        </button>
+
+        {isProfessional && (
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all ${
+              activeTab === 'requests'
+                ? 'text-primary-600 border-b-2 border-primary-600'
+                : 'text-gray-600 hover:text-primary-600'
+            }`}
+          >
+            <ClockIcon className="w-5 h-5" />
+            <span>Pending Requests</span>
+          </button>
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto">
+        {activeTab === 'categories' && !isProfessional && (
+          selectedCategory ? (
+            <ProfessionalList 
+              categoryId={selectedCategory}
+              onBack={handleBackToCategories}
+            />
+          ) : (
+            <CategoryChips onSelectCategory={handleCategorySelect} />
+          )
+        )}
+
+        {activeTab === 'chats' && (
+          <MyChatsList onOpenChat={handleOpenChat} />
+        )}
+
+        {activeTab === 'requests' && isProfessional && (
+          <PendingRequestsPanel onRequestResponded={handleRequestResponded} />
         )}
       </div>
     </div>

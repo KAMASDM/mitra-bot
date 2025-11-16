@@ -16,6 +16,7 @@ import {
   arrayRemove
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { notifyNewMessage } from './notificationService';
 
 // ===== REAL-TIME USER PRESENCE =====
 
@@ -128,7 +129,18 @@ export const adminSetUserStatus = async (userId, status) => {
   }
 };
 
-export const subscribeToOnlineUsers = (callback) => {
+// Check if a user is a professional by checking the professionals collection
+export const checkIfUserIsProfessional = async (userId) => {
+  try {
+    const professionalDoc = await getDoc(doc(db, 'professionals', userId));
+    return professionalDoc.exists();
+  } catch (error) {
+    console.error('Error checking if user is professional:', error);
+    return false;
+  }
+};
+
+export const subscribeToOnlineUsers = (callback, currentUserId = null) => {
   const q = query(
     collection(db, 'users'),
     where('status', 'in', ['online', 'away']),
@@ -136,15 +148,50 @@ export const subscribeToOnlineUsers = (callback) => {
     limit(50)
   );
   
-  return onSnapshot(q, (snapshot) => {
-    const users = snapshot.docs.map(doc => ({
+  return onSnapshot(q, async (snapshot) => {
+    let users = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
-    console.log('📊 Online users fetched:', users.length, 'users');
+    
+    console.log('📊 Online users fetched (before filtering):', users.length, 'users');
+    
+    // If currentUserId is provided, apply role-based filtering
+    if (currentUserId) {
+      // Check if current user is a professional
+      const currentUserIsProfessional = await checkIfUserIsProfessional(currentUserId);
+      
+      console.log(`🔍 Current user (${currentUserId}) is professional:`, currentUserIsProfessional);
+      
+      // Get professional status for all users
+      const usersWithRoles = await Promise.all(
+        users.map(async (user) => {
+          const isProfessional = await checkIfUserIsProfessional(user.id);
+          return { ...user, isProfessional };
+        })
+      );
+      
+      // Filter based on role:
+      // - If current user is a professional, show only regular users (not professionals)
+      // - If current user is a regular user, show only professionals
+      users = usersWithRoles.filter(user => {
+        if (currentUserIsProfessional) {
+          // Professional sees only regular users
+          return !user.isProfessional;
+        } else {
+          // Regular user sees only professionals
+          return user.isProfessional;
+        }
+      });
+      
+      console.log(`📊 After role-based filtering: ${users.length} users`);
+      console.log(`   Current user role: ${currentUserIsProfessional ? 'Professional' : 'Regular User'}`);
+      console.log(`   Showing: ${currentUserIsProfessional ? 'Regular Users' : 'Professionals'}`);
+    }
+    
     console.log('👥 Detailed Users:');
     users.forEach(u => {
-      console.log(`  - ID: ${u.id}, Name: ${u.displayName}, Status: ${u.status}, Email: ${u.email}`);
+      console.log(`  - ID: ${u.id}, Name: ${u.displayName}, Status: ${u.status}, Email: ${u.email}, IsProfessional: ${u.isProfessional || 'N/A'}`);
     });
     callback(users);
   }, (error) => {
@@ -153,7 +200,7 @@ export const subscribeToOnlineUsers = (callback) => {
   });
 };
 
-export const getOnlineUsers = async (excludeUserId = null) => {
+export const getOnlineUsers = async (excludeUserId = null, currentUserId = null) => {
   try {
     const q = query(
       collection(db, 'users'),
@@ -163,10 +210,32 @@ export const getOnlineUsers = async (excludeUserId = null) => {
     );
     
     const snapshot = await getDocs(q);
-    const users = snapshot.docs.map(doc => ({
+    let users = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+    
+    // Apply role-based filtering if currentUserId is provided
+    if (currentUserId) {
+      const currentUserIsProfessional = await checkIfUserIsProfessional(currentUserId);
+      
+      // Get professional status for all users
+      const usersWithRoles = await Promise.all(
+        users.map(async (user) => {
+          const isProfessional = await checkIfUserIsProfessional(user.id);
+          return { ...user, isProfessional };
+        })
+      );
+      
+      // Filter based on role
+      users = usersWithRoles.filter(user => {
+        if (currentUserIsProfessional) {
+          return !user.isProfessional; // Professional sees regular users
+        } else {
+          return user.isProfessional; // Regular user sees professionals
+        }
+      });
+    }
     
     return excludeUserId ? users.filter(user => user.id !== excludeUserId) : users;
   } catch (error) {
@@ -435,11 +504,28 @@ export const sendMessage = async (chatRoomId, senderId, message, type = 'text') 
     
     // Update chat room with last message
     const chatRoomRef = doc(db, 'chat_rooms', chatRoomId);
+    const chatRoomDoc = await getDoc(chatRoomRef);
+    
     await updateDoc(chatRoomRef, {
       lastMessage: message,
       lastMessageTime: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
+    
+    // Send notification to recipient (get recipient from chat room participants)
+    if (chatRoomDoc.exists()) {
+      const participants = chatRoomDoc.data().participants || [];
+      const recipientId = participants.find(id => id !== senderId);
+      
+      if (recipientId) {
+        // Send email and in-app notification to recipient
+        notifyNewMessage({
+          senderId,
+          recipientId,
+          messageText: message
+        }).catch(err => console.error('Failed to send message notification:', err));
+      }
+    }
     
     return { id: docRef.id, ...messageData };
   } catch (error) {

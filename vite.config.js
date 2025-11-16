@@ -8,28 +8,40 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      includeAssets: ['mitra.svg', 'mitra.png', 'icon-192.svg', 'icon-512.svg'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-      },
-      manifest: {
-        name: 'Gazra Mitra',
-        short_name: 'Gazra Mitra',
-        description: 'Community Support Platform for LGBTQAI+ and Women',
-        theme_color: '#6366f1',
-        background_color: '#f9fafb',
-        display: 'standalone',
-        icons: [
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg}'],
+        runtimeCaching: [
           {
-            src: 'vite.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml'
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
           },
           {
-            src: 'vite.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml'
+            urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'firebase-storage-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
+              }
+            }
           }
         ]
+      },
+      manifest: false, // Use public/manifest.json instead
+      devOptions: {
+        enabled: true
       }
     })
   ],

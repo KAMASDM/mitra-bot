@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Bars3Icon, 
@@ -9,13 +9,41 @@ import {
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import LanguageSelector from '../Settings/LanguageSelector';
+import Notifications from '../Notifications/Notifications';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 const TopBar = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { t } = useLanguage();
-  const { logout } = useAuth();
+  const { logout, currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // Subscribe to unread notifications count
+  useEffect(() => {
+    if (!currentUser) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(
+      notificationsRef,
+      where('userId', '==', currentUser.uid),
+      where('read', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setUnreadCount(snapshot.size);
+    }, (error) => {
+      console.error('Error fetching unread notifications:', error);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
 
   const handleLogout = async () => {
     try {
@@ -27,7 +55,7 @@ const TopBar = () => {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 bg-white border-b border-primary-200 shadow-royal z-50 max-w-mobile mx-auto">
+      <header className="fixed top-0 left-0 right-0 bg-white border-b border-primary-200 shadow-royal max-w-mobile mx-auto" style={{ zIndex: 9999 }}>
         <div className="flex items-center justify-between p-4">
           <button
             onClick={() => setShowMenu(!showMenu)}
@@ -51,11 +79,16 @@ const TopBar = () => {
               <LanguageIcon className="h-6 w-6" />
             </button>
             
-            <button className="p-2 rounded-lg hover:bg-primary-100 relative text-primary-600">
+            <button 
+              onClick={() => setShowNotifications(true)}
+              className="p-2 rounded-lg hover:bg-primary-100 relative text-primary-600"
+            >
               <BellIcon className="h-6 w-6" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                3
-              </span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
 
             <button
@@ -67,11 +100,11 @@ const TopBar = () => {
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Side Menu */}
       {showMenu && (
-        <div className="fixed inset-0 z-50 max-w-mobile mx-auto">
+        <div className="fixed inset-0 max-w-mobile mx-auto" style={{ zIndex: 10000 }}>
           <div 
             className="absolute inset-0 bg-black bg-opacity-50"
             onClick={() => setShowMenu(false)}
@@ -111,6 +144,12 @@ const TopBar = () => {
       <LanguageSelector 
         isOpen={showLanguageSelector}
         onClose={() => setShowLanguageSelector(false)}
+      />
+
+      {/* Notifications Modal */}
+      <Notifications
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
       />
     </>
   );

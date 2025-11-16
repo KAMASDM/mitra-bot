@@ -77,3 +77,11 @@ $RECYCLE.BIN/
 # Debug
 .vscode/launch.json
 debug.log
+
+# Documentation (exclude all markdown files except README.md)
+*.md
+!README.md
+
+# Files with API keys (IMPORTANT: Keep these private!)
+src/services/firebase.js
+src/services/newsApiService.js
