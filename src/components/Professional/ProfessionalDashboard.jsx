@@ -11,9 +11,11 @@ import {
   PlusIcon,
   UserGroupIcon,
   ClipboardDocumentListIcon,
+  BellIcon,
 } from '@heroicons/react/24/outline';
 import StatsCard from './StatsCard';
 import AppointmentCard from './AppointmentCard';
+import ProfessionalNotifications from './ProfessionalNotifications';
 import {
   getDashboardStats,
   acceptBooking,
@@ -21,6 +23,10 @@ import {
   completeBooking,
   getProfessionalByUserId,
 } from '../../services/professionalService';
+import { 
+  subscribeToBookingUpdates,
+  subscribeToProfessionalNotifications 
+} from '../../services/professionalNotificationService';
 import toast from 'react-hot-toast';
 
 const ProfessionalDashboard = () => {
@@ -32,10 +38,45 @@ const ProfessionalDashboard = () => {
   const [stats, setStats] = useState(null);
   const [professional, setProfessional] = useState(null);
   const [todayAppointments, setTodayAppointments] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     loadDashboardData();
   }, [currentUser]);
+
+  // Subscribe to real-time booking updates
+  useEffect(() => {
+    if (!professional) return;
+
+    const unsubscribe = subscribeToBookingUpdates(
+      professional.id,
+      (newBooking) => {
+        // Refresh dashboard when new booking arrives
+        loadDashboardData();
+      },
+      (updatedBooking) => {
+        // Refresh dashboard when booking is updated
+        loadDashboardData();
+      }
+    );
+
+    return () => unsubscribe();
+  }, [professional]);
+
+  // Subscribe to notifications
+  useEffect(() => {
+    if (!professional) return;
+
+    const unsubscribe = subscribeToProfessionalNotifications(
+      professional.id,
+      (notifications) => {
+        setUnreadNotifications(notifications.length);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [professional]);
 
   const loadDashboardData = async () => {
     if (!currentUser) return;
@@ -118,9 +159,22 @@ const ProfessionalDashboard = () => {
               {professional?.specialization || 'Professional'}
             </p>
           </div>
-          {professional?.verification_status === 'VERIFIED' && (
-            <CheckBadgeIcon className="w-8 h-8 text-green-300" />
-          )}
+          <div className="flex items-center gap-2">
+            {professional?.verification_status === 'VERIFIED' && (
+              <CheckBadgeIcon className="w-8 h-8 text-green-300" />
+            )}
+            <button
+              onClick={() => setShowNotifications(true)}
+              className="relative p-2 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <BellIcon className="w-6 h-6" />
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -140,6 +194,17 @@ const ProfessionalDashboard = () => {
                 <span className="text-sm font-medium text-green-700">Verified</span>
               </div>
             )}
+            <button
+              onClick={() => setShowNotifications(true)}
+              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <BellIcon className="w-6 h-6 text-gray-700" />
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => navigate('/professional/availability')}
               className="
@@ -307,6 +372,12 @@ const ProfessionalDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Notifications Modal */}
+      <ProfessionalNotifications
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </div>
   );
 };

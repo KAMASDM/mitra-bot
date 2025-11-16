@@ -143,9 +143,9 @@ const PWAInstallPrompt = () => {
           <button
             onClick={() => setShowPrompt(true)}
             className="px-3 py-2 bg-indigo-600 text-white rounded-lg shadow-md"
-            title="Show PWA Install Prompt (dev)"
+            title="Install App (dev)"
           >
-            Show PWA Prompt
+            Install App
           </button>
         </div>
       );

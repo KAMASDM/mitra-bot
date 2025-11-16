@@ -18,6 +18,7 @@ import Settings from './components/Settings/Settings';
 import Layout from './components/Layout/Layout';
 import SplashScreen from './components/Common/SplashScreen';
 import PWAInstallPrompt from './components/Common/PWAInstallPrompt';
+import UpdateNotification from './components/Common/UpdateNotification';
 import ProfessionalDashboard from './components/Professional/ProfessionalDashboard';
 import AppointmentsCalendar from './components/Professional/AppointmentsCalendar';
 import AvailabilityManager from './components/Professional/AvailabilityManager';
@@ -57,6 +58,7 @@ function AppContent() {
   return (
     <Router>
       <PWAInstallPrompt />
+      <UpdateNotification />
       <div className="App min-h-screen bg-main">
         <Routes>
           {/* Public Routes */}
