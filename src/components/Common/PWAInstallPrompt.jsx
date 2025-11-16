@@ -15,8 +15,11 @@ const PWAInstallPrompt = () => {
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   useEffect(() => {
+    console.log('PWA Install Prompt: Component mounted');
+    
     // Check if already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
+      console.log('PWA Install Prompt: Already installed');
       setIsInstalled(true);
       return;
     }
@@ -24,10 +27,11 @@ const PWAInstallPrompt = () => {
     // Check if iOS
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     setIsIOS(iOS);
+    console.log('PWA Install Prompt: Is iOS?', iOS);
 
     // Check if user has dismissed the prompt before
     const dismissedAt = localStorage.getItem('pwa-install-dismissed');
-    const installCount = localStorage.getItem('pwa-install-count') || 0;
+    const installCount = parseInt(localStorage.getItem('pwa-install-count') || '0');
     
     // Don't show if dismissed in last 7 days
     if (dismissedAt) {
@@ -37,31 +41,34 @@ const PWAInstallPrompt = () => {
       }
     }
 
-    // Show prompt after 3 seconds for first-time visitors
-    // or after 10 seconds for returning visitors
-    const delay = installCount === 0 ? 3000 : 10000;
+    // Show prompt after 2 seconds for testing (was 3s/10s)
+    const delay = 2000;
 
     const timer = setTimeout(() => {
-      if (iOS) {
-        // Show iOS-specific instructions
-        setShowPrompt(true);
-      } else {
-        // For Android/Desktop, show if beforeinstallprompt was captured
-        if (deferredPrompt) {
-          setShowPrompt(true);
-        }
-      }
+      console.log('PWA Install Prompt: Timer fired, showing prompt');
+      // Show prompt for iOS or Android/Desktop
+      setShowPrompt(true);
     }, delay);
 
     // Listen for beforeinstallprompt event (Android/Desktop)
     const handleBeforeInstallPrompt = (e) => {
+      console.log('PWA Install Prompt: beforeinstallprompt event received');
       e.preventDefault();
       setDeferredPrompt(e);
+      // expose for debugging (dev only)
+      try {
+        window.deferredPWAInstall = e;
+      } catch (err) {
+        // ignore
+      }
       
-      // Auto-show prompt after delay
-      setTimeout(() => {
-        setShowPrompt(true);
-      }, delay);
+      // Auto-show prompt after delay if not already shown
+      if (!showPrompt) {
+        setTimeout(() => {
+          console.log('PWA Install Prompt: Showing after beforeinstallprompt');
+          setShowPrompt(true);
+        }, delay);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -125,7 +132,25 @@ const PWAInstallPrompt = () => {
     // Don't set dismissed timestamp - will show again on next visit
   };
 
+  // Dev helper: expose quick show for local testing
+  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
   if (isInstalled || !showPrompt) {
+    // If in dev and we want a manual trigger, still render a tiny debug button
+    if (isLocalhost) {
+      return (
+        <div className="fixed bottom-4 right-4 z-50">
+          <button
+            onClick={() => setShowPrompt(true)}
+            className="px-3 py-2 bg-indigo-600 text-white rounded-lg shadow-md"
+            title="Show PWA Install Prompt (dev)"
+          >
+            Show PWA Prompt
+          </button>
+        </div>
+      );
+    }
+
     return null;
   }
 

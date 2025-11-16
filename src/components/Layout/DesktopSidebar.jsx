@@ -19,10 +19,21 @@ import {
 } from '@heroicons/react/24/solid';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const DesktopSidebar = () => {
   const { t } = useLanguage();
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
 
   const mainNavItems = [
     {
@@ -195,7 +206,16 @@ const DesktopSidebar = () => {
       </nav>
 
       {/* Footer Motivational Quote */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 space-y-3">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handleLogout}
+            className="w-full text-left p-3 rounded-lg hover:bg-red-50 text-red-600 bg-white border border-red-50"
+          >
+            {t('logout') || 'Logout'}
+          </button>
+        </div>
+
         <div className="bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl p-4 text-white shadow-lg">
           <div className="flex items-center gap-2 mb-2">
             <SparklesIcon className="w-5 h-5" />
