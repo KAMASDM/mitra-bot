@@ -84,4 +84,3 @@ debug.log
 
 # Files with API keys (IMPORTANT: Keep these private!)
 src/services/firebase.js
-src/services/newsApiService.js
