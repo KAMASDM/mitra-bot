@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NewspaperIcon, ArrowTopRightOnSquareIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { fetchCommunityNews, getRelativeTime } from '../../services/newsApiService';
+// import { fetchCommunityNews, getRelativeTime } from '../../services/newsService';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -169,11 +169,10 @@ const News = () => {
                         <button
                           key={pageNum}
                           onClick={() => handlePageClick(pageNum)}
-                          className={`min-w-[40px] h-10 rounded-lg font-medium transition-all ${
-                            currentPage === pageNum
+                          className={`min-w-[40px] h-10 rounded-lg font-medium transition-all ${currentPage === pageNum
                               ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
                               : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                          }`}
+                            }`}
                         >
                           {pageNum}
                         </button>

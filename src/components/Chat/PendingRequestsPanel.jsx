@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  CheckCircleIcon, 
+import {
+  CheckCircleIcon,
   XCircleIcon,
   UserCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
-import { 
-  getPendingChatRequests, 
-  respondToChatRequest 
+import {
+  getPendingChatRequests,
+  respondToChatRequest
 } from '../../services/professionalChatService';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistance } from 'date-fns';
@@ -22,7 +22,7 @@ const PendingRequestsPanel = ({ onRequestResponded }) => {
 
   useEffect(() => {
     loadRequests();
-    
+
     // Auto-refresh every 30 seconds
     const interval = setInterval(loadRequests, 30000);
     return () => clearInterval(interval);
@@ -42,19 +42,22 @@ const PendingRequestsPanel = ({ onRequestResponded }) => {
 
   const handleRespond = async (requestId, accept) => {
     setRespondingTo(requestId);
-    
+
     try {
       const result = await respondToChatRequest(requestId, accept);
-      
+
       if (accept && result.chatRoomId) {
         toast.success('Chat request accepted!');
         if (onRequestResponded) {
           onRequestResponded(result.chatRoomId);
         }
-      } else {
+      } else if (!accept) {
         toast.success('Chat request declined');
+      } else {
+        console.error('Failed to create chat room on accept:', result);
+        toast.error('Failed to accept request. Please check Firebase logs for creation error.');
       }
-      
+
       // Reload requests
       await loadRequests();
     } catch (error) {
@@ -149,7 +152,7 @@ const PendingRequestsPanel = ({ onRequestResponded }) => {
                     <CheckCircleIcon className="w-5 h-5" />
                     <span className="text-sm font-medium">Accept</span>
                   </button>
-                  
+
                   <button
                     onClick={() => handleRespond(request.id, false)}
                     disabled={respondingTo === request.id}

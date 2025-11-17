@@ -1,11 +1,11 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  getDocs, 
-  doc, 
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  doc,
   getDoc,
   addDoc,
   updateDoc,
@@ -81,7 +81,7 @@ export const getOnlineProfessionalsByCategory = async () => {
       collection(db, 'professionals'),
       limit(100)
     );
-    
+
     const professionalsSnapshot = await getDocs(professionalsQuery);
     const allProfessionals = professionalsSnapshot.docs.map(doc => ({
       id: doc.id,
@@ -93,13 +93,13 @@ export const getOnlineProfessionalsByCategory = async () => {
       collection(db, 'users'),
       where('status', 'in', ['online', 'away'])
     );
-    
+
     const usersSnapshot = await getDocs(usersQuery);
     const onlineUserIds = new Set(usersSnapshot.docs.map(doc => doc.id));
 
     // Filter professionals who are online and group by category
     const categorized = {};
-    
+
     Object.keys(PROFESSIONAL_CATEGORIES).forEach(categoryKey => {
       categorized[categoryKey] = [];
     });
@@ -107,17 +107,17 @@ export const getOnlineProfessionalsByCategory = async () => {
     allProfessionals.forEach(professional => {
       if (onlineUserIds.has(professional.id)) {
         const typeId = String(professional.professional_type_id);
-        
+
         // Find category by typeId
         const categoryKey = Object.keys(PROFESSIONAL_CATEGORIES).find(
           key => PROFESSIONAL_CATEGORIES[key].typeId === typeId
         );
-        
+
         if (categoryKey && categorized[categoryKey]) {
           // Get user status
           const userDoc = usersSnapshot.docs.find(doc => doc.id === professional.id);
           const userData = userDoc ? userDoc.data() : {};
-          
+
           categorized[categoryKey].push({
             ...professional,
             status: userData.status || 'online',
@@ -128,7 +128,7 @@ export const getOnlineProfessionalsByCategory = async () => {
       }
     });
 
-    console.log('📊 Online professionals by category:', 
+    console.log('📊 Online professionals by category:',
       Object.entries(categorized).map(([cat, profs]) => `${cat}: ${profs.length}`).join(', ')
     );
 
@@ -146,11 +146,11 @@ export const subscribeToOnlineProfessionals = (categoryId, callback) => {
   const category = PROFESSIONAL_CATEGORIES[categoryId];
   if (!category) {
     console.error('Invalid category:', categoryId);
-    return () => {};
+    return () => { };
   }
 
   const typeId = category.typeId;
-  
+
   // Query professionals of this type
   const professionalsQuery = query(
     collection(db, 'professionals'),
@@ -169,7 +169,7 @@ export const subscribeToOnlineProfessionals = (categoryId, callback) => {
       collection(db, 'users'),
       where('status', 'in', ['online', 'away'])
     );
-    
+
     const usersSnapshot = await getDocs(usersQuery);
     const onlineUsers = {};
     usersSnapshot.docs.forEach(doc => {
@@ -183,7 +183,7 @@ export const subscribeToOnlineProfessionals = (categoryId, callback) => {
         ...prof,
         status: onlineUsers[prof.id].status,
         lastSeen: onlineUsers[prof.id].lastSeen,
-        displayName: onlineUsers[prof.id].displayName || 
+        displayName: onlineUsers[prof.id].displayName ||
           `${prof.first_name || ''} ${prof.last_name || ''}`.trim()
       }));
 
@@ -201,7 +201,7 @@ export const getOnlineProfessionalCounts = async () => {
   try {
     const categorized = await getOnlineProfessionalsByCategory();
     const counts = {};
-    
+
     Object.keys(categorized).forEach(categoryKey => {
       counts[categoryKey] = categorized[categoryKey].length;
     });
@@ -227,9 +227,9 @@ export const sendChatRequest = async (fromUserId, toProfessionalId, message = ''
       where('toProfessionalId', '==', toProfessionalId),
       where('status', 'in', ['pending', 'accepted'])
     );
-    
+
     const existingSnapshot = await getDocs(existingRequestQuery);
-    
+
     if (!existingSnapshot.empty) {
       throw new Error('Chat request already exists');
     }
@@ -242,24 +242,24 @@ export const sendChatRequest = async (fromUserId, toProfessionalId, message = ''
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
-    
+
     const docRef = await addDoc(collection(db, 'chat_requests'), requestData);
-    
+
     // Create notification for professional
     await addDoc(collection(db, 'notifications'), {
       userId: toProfessionalId,
       type: 'chat_request',
       title: 'New Chat Request',
       message: message || 'Someone wants to chat with you',
-      data: { 
-        requestId: docRef.id, 
+      data: {
+        requestId: docRef.id,
         fromUserId,
         type: 'chat_request'
       },
       read: false,
       createdAt: serverTimestamp()
     });
-    
+
     console.log('✅ Chat request sent:', docRef.id);
     return { id: docRef.id, ...requestData };
   } catch (error) {
@@ -275,21 +275,27 @@ export const respondToChatRequest = async (requestId, response, professionalId) 
   try {
     const requestRef = doc(db, 'chat_requests', requestId);
     const requestDoc = await getDoc(requestRef);
-    
+
     if (!requestDoc.exists()) {
       throw new Error('Chat request not found');
     }
-    
+
     const requestData = requestDoc.data();
-    
+
+    // Step 1: Update request status
     await updateDoc(requestRef, {
       status: response, // 'accepted' or 'rejected'
       respondedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
-    
+
     if (response === 'accepted') {
-      // Create a chat room
+      console.log('Attempting to create chat room with data:', {
+        fromUserId: requestData.fromUserId,
+        toProfessionalId: requestData.toProfessionalId
+      });
+
+      // Step 2: Create a chat room
       const chatRoomData = {
         participants: [requestData.fromUserId, requestData.toProfessionalId],
         userId: requestData.fromUserId,
@@ -303,33 +309,41 @@ export const respondToChatRequest = async (requestId, response, professionalId) 
           [requestData.toProfessionalId]: 0
         }
       };
-      
+
       const chatRoomRef = await addDoc(collection(db, 'chat_rooms'), chatRoomData);
-      
-      // Update request with chat room ID
+      const chatRoomId = chatRoomRef.id;
+
+      if (!chatRoomId) { // <<< NAYA AUR CRITICAL CHECK
+        throw new Error("Chat room creation failed. ID is missing (Database rule violation likely).");
+      }
+
+      console.log('✅ Chat room created successfully with ID:', chatRoomId);
+
+      // Step 3: Update request with chat room ID
       await updateDoc(requestRef, {
-        chatRoomId: chatRoomRef.id
+        chatRoomId: chatRoomId
       });
-      
-      // Notify user that request was accepted
+
+      // Step 4: Notify user that request was accepted
       await addDoc(collection(db, 'notifications'), {
         userId: requestData.fromUserId,
         type: 'chat_request_accepted',
         title: 'Chat Request Accepted',
         message: 'A professional accepted your chat request',
-        data: { 
-          requestId, 
-          chatRoomId: chatRoomRef.id,
+        data: {
+          requestId,
+          chatRoomId: chatRoomId,
           professionalId: requestData.toProfessionalId
         },
         read: false,
         createdAt: serverTimestamp()
       });
-      
-      console.log('✅ Chat room created:', chatRoomRef.id);
-      return { chatRoomId: chatRoomRef.id };
+
+      console.log('✅ Chat room successfully finalized.');
+      return { chatRoomId: chatRoomId };
+
     } else {
-      // Notify user that request was rejected
+      // Step 5: Notify user that request was rejected
       await addDoc(collection(db, 'notifications'), {
         userId: requestData.fromUserId,
         type: 'chat_request_rejected',
@@ -339,11 +353,12 @@ export const respondToChatRequest = async (requestId, response, professionalId) 
         read: false,
         createdAt: serverTimestamp()
       });
+      return { success: true }; // Decline ke liye sahi object
     }
-    
-    return { success: true };
+
   } catch (error) {
-    console.error('Error responding to chat request:', error);
+    console.error('❌ Error responding to chat request (CRITICAL):', error);
+    // Error ko wapas throw karna zaroori hai taki client ka catch block chale
     throw error;
   }
 };
@@ -359,20 +374,20 @@ export const getPendingChatRequests = async (professionalId) => {
       where('status', '==', 'pending'),
       orderBy('createdAt', 'desc')
     );
-    
+
     const snapshot = await getDocs(q);
     const requests = await Promise.all(
       snapshot.docs.map(async (docSnap) => {
         const requestData = { id: docSnap.id, ...docSnap.data() };
-        
+
         // Get user details
         const userDoc = await getDoc(doc(db, 'users', requestData.fromUserId));
         requestData.userData = userDoc.exists() ? { id: userDoc.id, ...userDoc.data() } : null;
-        
+
         return requestData;
       })
     );
-    
+
     return requests;
   } catch (error) {
     console.error('Error getting pending chat requests:', error);
@@ -386,26 +401,26 @@ export const getPendingChatRequests = async (professionalId) => {
 export const getUserChatRooms = async (userId, userIsProfessional = false) => {
   try {
     const field = userIsProfessional ? 'professionalId' : 'userId';
-    
+
     const q = query(
       collection(db, 'chat_rooms'),
       where(field, '==', userId),
       where('status', '==', 'active'),
       orderBy('lastMessageAt', 'desc')
     );
-    
+
     const snapshot = await getDocs(q);
     const chatRooms = await Promise.all(
       snapshot.docs.map(async (docSnap) => {
         const chatData = { id: docSnap.id, ...docSnap.data() };
-        
+
         // Get other participant's details
         const otherUserId = userIsProfessional ? chatData.userId : chatData.professionalId;
         const otherUserDoc = await getDoc(doc(db, 'users', otherUserId));
-        
+
         if (otherUserDoc.exists()) {
           chatData.otherUser = { id: otherUserDoc.id, ...otherUserDoc.data() };
-          
+
           // If other user is professional, get professional details
           if (!userIsProfessional) {
             const professionalDoc = await getDoc(doc(db, 'professionals', otherUserId));
@@ -414,11 +429,11 @@ export const getUserChatRooms = async (userId, userIsProfessional = false) => {
             }
           }
         }
-        
+
         return chatData;
       })
     );
-    
+
     return chatRooms;
   } catch (error) {
     console.error('Error getting user chat rooms:', error);
@@ -433,13 +448,13 @@ export const sendChatMessage = async (chatRoomId, senderId, messageText) => {
   try {
     const chatRoomRef = doc(db, 'chat_rooms', chatRoomId);
     const chatRoomDoc = await getDoc(chatRoomRef);
-    
+
     if (!chatRoomDoc.exists()) {
       throw new Error('Chat room not found');
     }
-    
+
     const chatRoomData = chatRoomDoc.data();
-    
+
     // Create message
     const messageData = {
       chatRoomId,
@@ -448,23 +463,23 @@ export const sendChatMessage = async (chatRoomId, senderId, messageText) => {
       read: false,
       createdAt: serverTimestamp()
     };
-    
+
     const messageRef = await addDoc(
       collection(db, 'chat_rooms', chatRoomId, 'messages'),
       messageData
     );
-    
+
     // Update chat room with last message
     const otherUserId = chatRoomData.participants.find(id => id !== senderId);
     const newUnreadCount = { ...chatRoomData.unreadCount };
     newUnreadCount[otherUserId] = (newUnreadCount[otherUserId] || 0) + 1;
-    
+
     await updateDoc(chatRoomRef, {
       lastMessage: messageText,
       lastMessageAt: serverTimestamp(),
       unreadCount: newUnreadCount
     });
-    
+
     return { id: messageRef.id, ...messageData };
   } catch (error) {
     console.error('Error sending chat message:', error);
@@ -480,7 +495,7 @@ export const subscribeToChatMessages = (chatRoomId, callback) => {
     collection(db, 'chat_rooms', chatRoomId, 'messages'),
     orderBy('createdAt', 'asc')
   );
-  
+
   return onSnapshot(messagesQuery, (snapshot) => {
     const messages = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -497,34 +512,34 @@ export const markChatMessagesAsRead = async (chatRoomId, userId) => {
   try {
     const chatRoomRef = doc(db, 'chat_rooms', chatRoomId);
     const chatRoomDoc = await getDoc(chatRoomRef);
-    
+
     if (!chatRoomDoc.exists()) {
       throw new Error('Chat room not found');
     }
-    
+
     const chatRoomData = chatRoomDoc.data();
     const newUnreadCount = { ...chatRoomData.unreadCount };
     newUnreadCount[userId] = 0;
-    
+
     await updateDoc(chatRoomRef, {
       unreadCount: newUnreadCount
     });
-    
+
     // Mark all unread messages as read
     const messagesQuery = query(
       collection(db, 'chat_rooms', chatRoomId, 'messages'),
       where('read', '==', false),
       where('senderId', '!=', userId)
     );
-    
+
     const snapshot = await getDocs(messagesQuery);
-    const updatePromises = snapshot.docs.map(docSnap => 
+    const updatePromises = snapshot.docs.map(docSnap =>
       updateDoc(doc(db, 'chat_rooms', chatRoomId, 'messages', docSnap.id), {
         read: true,
         readAt: serverTimestamp()
       })
     );
-    
+
     await Promise.all(updatePromises);
   } catch (error) {
     console.error('Error marking messages as read:', error);
@@ -541,20 +556,20 @@ export const subscribeToPendingRequests = (professionalId, callback) => {
     where('status', '==', 'pending'),
     orderBy('createdAt', 'desc')
   );
-  
+
   return onSnapshot(q, async (snapshot) => {
     const requests = await Promise.all(
       snapshot.docs.map(async (docSnap) => {
         const requestData = { id: docSnap.id, ...docSnap.data() };
-        
+
         // Get user details
         const userDoc = await getDoc(doc(db, 'users', requestData.fromUserId));
         requestData.userData = userDoc.exists() ? { id: userDoc.id, ...userDoc.data() } : null;
-        
+
         return requestData;
       })
     );
-    
+
     callback(requests);
   });
 };

@@ -17,7 +17,7 @@ import {
 
 const Resources = () => {
   const { t } = useLanguage();
-  
+
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -33,7 +33,7 @@ const Resources = () => {
 
     // Filter by search query
     if (searchQuery.trim()) {
-      resources = resources.filter(resource => 
+      resources = resources.filter(resource =>
         resource.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         resource.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         resource.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -53,7 +53,7 @@ const Resources = () => {
   }, []);
 
   return (
-    <div className="fixed inset-0 top-16 bottom-20 lg:static flex flex-col bg-gray-50 lg:bg-transparent lg:h-full">
+    <div className="fixed pt-9 inset-0 top-16 bottom-20 flex flex-col bg-gray-50 lg:bg-transparent lg:h-full">
       {/* Fixed Header - Hidden on desktop (shown in Layout) */}
       <div className="flex-shrink-0 bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 text-white p-4 shadow-lg lg:hidden">
         <div className="flex items-center justify-between">
@@ -116,7 +116,7 @@ const Resources = () => {
           >
             All ({RESOURCES_DATA.length})
           </button>
-          
+
           {Object.keys(RESOURCE_CATEGORIES).map((key) => {
             const category = RESOURCE_CATEGORIES[key];
             const info = CATEGORY_INFO[category];
@@ -198,8 +198,8 @@ const Resources = () => {
         {/* Disclaimer */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-sm text-blue-900">
-            <strong>Note:</strong> All resources listed here are verified and authentic. 
-            However, we recommend verifying current contact information and availability before reaching out. 
+            <strong>Note:</strong> All resources listed here are verified and authentic.
+            However, we recommend verifying current contact information and availability before reaching out.
             If you notice any outdated information, please contact us.
           </p>
         </div>
