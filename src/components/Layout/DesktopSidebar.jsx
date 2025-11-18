@@ -8,7 +8,8 @@ import {
   BookOpenIcon,
   Cog6ToothIcon,
   UserCircleIcon,
-  SparklesIcon
+  SparklesIcon,
+  CalendarDaysIcon
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -56,6 +57,13 @@ const DesktopSidebar = () => {
       activeIcon: UserGroupIconSolid,
       label: t('professionals'),
       color: 'text-pink-600'
+    },    
+    {
+      path: '/appointments',
+      icon: CalendarDaysIcon,
+      activeIcon: CalendarDaysIcon,
+      label: t('appointments'),
+      color: 'text-blue-600'
     },
     {
       path: '/chat',

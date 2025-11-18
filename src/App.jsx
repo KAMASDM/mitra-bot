@@ -24,6 +24,7 @@ import AppointmentsCalendar from './components/Professional/AppointmentsCalendar
 import AvailabilityManager from './components/Professional/AvailabilityManager';
 import ProfessionalRegistration from './components/Professional/ProfessionalRegistration';
 import './App.css';
+import Appointments from './components/Appointments/Appointments';
 
 const ProtectedRoute = ({ children }) => {
   const { currentUser } = useAuth();
@@ -106,6 +107,13 @@ function AppContent() {
             <ProtectedRoute>
               <Layout>
                 <Chat />
+              </Layout>
+            </ProtectedRoute>
+          } />
+           <Route path="/appointments" element={
+            <ProtectedRoute>
+              <Layout>
+                <Appointments />
               </Layout>
             </ProtectedRoute>
           } />

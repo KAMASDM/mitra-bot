@@ -303,31 +303,44 @@ export const createBooking = async (bookingData) => {
   }
 };
 
-export const getUserBookings = async (userId, status = null) => {
+export const getUserBookings = async (userId, userType = 'client', status = null) => {
   try {
-    let q = collection(db, 'bookings');
-    const constraints = [where('clientId', '==', userId)];
+    const field = userType === 'client' ? 'clientId' : 'professionalId';
+    let q = query(
+      collection(db, BOOKINGS_COLLECTION),
+      where(field, '==', userId),
+      orderBy('appointmentDate', 'desc')
+    );
 
     if (status) {
-      constraints.push(where('status', '==', status));
+      q = query(
+        collection(db, BOOKINGS_COLLECTION),
+        and(
+          where(field, '==', userId),
+          where('status', '==', status)
+        ),
+        orderBy('appointmentDate', 'desc')
+      );
     }
 
-    constraints.push(orderBy('appointmentDate', 'desc'));
-    constraints.push(limit(20));
+    const querySnapshot = await getDocs(q);
+    const bookings = [];
 
-    q = query(q, ...constraints);
-    const snapshot = await getDocs(q);
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      bookings.push({
+        id: doc.id,
+        ...data,
+        appointmentDate: data.appointmentDate?.toDate?.() || data.appointmentDate
+      });
+    });
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    return { bookings, success: true };
   } catch (error) {
     console.error('Error getting user bookings:', error);
-    throw error;
+    return { error: error.message, success: false };
   }
 };
-
 export const updateBookingStatus = async (bookingId, status) => {
   try {
     const bookingRef = doc(db, 'bookings', bookingId);

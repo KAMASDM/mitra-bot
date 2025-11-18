@@ -17,10 +17,11 @@ import { db } from './firebase';
 
 const PROFESSIONALS_COLLECTION = 'professionals';
 const BOOKINGS_COLLECTION = 'bookings';
-const AVAILABILITY_COLLECTION = 'availability_slots';
+const AVAILABILITY_COLLECTION = 'availability';
 const EARNINGS_COLLECTION = 'earnings';
 const SESSION_NOTES_COLLECTION = 'session_notes';
 const DOCUMENTS_COLLECTION = 'professional_documents';
+const AVAILABILITY_SLOTS_COLLECTION = 'availabilitySlots';
 
 // ===========================
 // PROFESSIONAL PROFILE
@@ -213,37 +214,73 @@ export const getProfessionalBookings = async (professionalId, filters = {}) => {
 /**
  * Subscribe to booking updates in real-time
  */
+// export const subscribeToProfessionalBookings = (professionalId, callback) => {
+//   const q = query(
+//     collection(db, BOOKINGS_COLLECTION),
+//     where('professionalId', '==', professionalId),
+//     orderBy('date', 'desc')
+//   );
+
+//   return onSnapshot(q, (snapshot) => {
+//     const bookings = snapshot.docs.map(doc => ({
+//       id: doc.id,
+//       ...doc.data()
+//     }));
+//     callback(bookings);
+//   });
+// };
+
 export const subscribeToProfessionalBookings = (professionalId, callback) => {
-  const q = query(
-    collection(db, BOOKINGS_COLLECTION),
-    where('professionalId', '==', professionalId),
-    orderBy('date', 'desc')
-  );
+  if (!professionalId) {
+    console.error('Professional ID is required for subscription');
+    return () => { }; // Return an empty unsubscribe function
+  }
+  try {
+    const bookingsQuery = query(
+      collection(db, BOOKINGS_COLLECTION),
+      where('professionalId', '==', professionalId),
+      orderBy('appointmentDate', 'asc')
+    );
 
-  return onSnapshot(q, (snapshot) => {
-    const bookings = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    callback(bookings);
-  });
+    const unsubscribe = onSnapshot(bookingsQuery, (querySnapshot) => {
+      const bookings = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        bookings.push({
+          id: doc.id,
+          ...data,
+          // Convert Firestore Timestamp to JS Date object
+          appointmentDate: data.appointmentDate.toDate(),
+        });
+      });
+      // This callback will be triggered every time the bookings data changes for this professional
+      callback({ success: true, bookings });
+    }, (error) => {
+      console.error('Error in bookings subscription:', error);
+      callback({ success: false, error: error.message, bookings: [] });
+    });
+    return unsubscribe; // Return the function to stop the listener
+  } catch (error) {
+    console.error('Error setting up bookings subscription:', error);
+    return () => { };
+  }
 };
-
 /**
  * Update booking status
  */
-export const updateBookingStatus = async (bookingId, status, notes = '') => {
+export const updateBookingStatus = async (bookingId, status, additionalData = {}) => {
   try {
-    const docRef = doc(db, BOOKINGS_COLLECTION, bookingId);
-    await updateDoc(docRef, {
+    const bookingRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+    await updateDoc(bookingRef, {
       status,
-      notes,
-      updatedAt: Timestamp.now()
+      ...additionalData,
+      updatedAt: new Date()
     });
-    return true;
+
+    return { success: true };
   } catch (error) {
     console.error('Error updating booking status:', error);
-    throw error;
+    return { error: error.message, success: false };
   }
 };
 
@@ -315,26 +352,23 @@ export const getAvailabilitySlots = async (professionalId, filters = {}) => {
 /**
  * Create availability slot
  */
-export const createAvailabilitySlot = async (professionalId, slotData) => {
+export const createAvailabilitySlot = async (slotData) => {
   try {
-    const docRef = await addDoc(collection(db, AVAILABILITY_COLLECTION), {
-      professionalId,
-      start_date: Timestamp.fromDate(new Date(slotData.start_date)),
-      end_date: Timestamp.fromDate(new Date(slotData.end_date)),
-      duration: slotData.duration || 60,
-      status: 'available',
-      type: slotData.type || 'online',
-      location: slotData.location || '',
-      price: slotData.price || 0,
-      createdAt: Timestamp.now()
-    });
-    return docRef.id;
+    const slotPayload = {
+      ...slotData,
+      created_at: Timestamp.now(), // Use Firestore Timestamp for creation date
+      is_cancelled: false,
+    };
+
+    const docRef = await addDoc(collection(db, 'availabilitySlots'), slotPayload);
+    console.log("Successfully saved event to Firestore with ID:", docRef.id);
+    return { success: true, id: docRef.id };
+
   } catch (error) {
-    console.error('Error creating availability slot:', error);
-    throw error;
+    console.error("Error creating availability slot:", error);
+    return { success: false, error: error.message };
   }
 };
-
 /**
  * Create multiple availability slots (bulk)
  */
@@ -351,25 +385,18 @@ export const createBulkAvailabilitySlots = async (professionalId, slots) => {
 /**
  * Update availability slot
  */
-export const updateAvailabilitySlot = async (slotId, updates) => {
+export const updateAvailabilitySlot = async (slotId, slotData) => {
   try {
-    const docRef = doc(db, AVAILABILITY_COLLECTION, slotId);
-    const updateData = { ...updates };
-    
-    if (updates.start_date) {
-      updateData.start_date = Timestamp.fromDate(new Date(updates.start_date));
-    }
-    if (updates.end_date) {
-      updateData.end_date = Timestamp.fromDate(new Date(updates.end_date));
-    }
-    
-    await updateDoc(docRef, updateData);
-    return true;
+    const slotRef = doc(db, 'availabilitySlots', slotId);
+    await updateDoc(slotRef, slotData);
+    console.log("Successfully updated event in Firestore with ID:", slotId);
+    return { success: true };
   } catch (error) {
-    console.error('Error updating availability slot:', error);
-    throw error;
+    console.error("Error updating availability slot:", error);
+    return { success: false, error: error.message };
   }
 };
+
 
 /**
  * Delete availability slot
