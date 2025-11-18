@@ -10,7 +10,7 @@ import { checkIfUserIsProfessional } from '../../services/chatService';
 import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
 
-const MyChatsList = ({ onChatSelect }) => {
+const MyChatsList = ({ onOpenChat }) => {
   const { currentUser } = useAuth();
   const [chatRooms, setChatRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,7 @@ const MyChatsList = ({ onChatSelect }) => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
-              onClick={() => onChatSelect(chatRoom)}
+              onClick={() => onOpenChat(chatRoom)}
               className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer hover:border-primary-300"
             >
               <div className="flex items-start gap-3">

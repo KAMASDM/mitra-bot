@@ -6,23 +6,24 @@ import ProfessionalList from './ProfessionalList';
 import MyChatsList from './MyChatsList';
 import PendingRequestsPanel from './PendingRequestsPanel';
 import ProfessionalChatWindow from './ProfessionalChatWindow';
-import { 
-  UserGroupIcon, 
+import {
+  UserGroupIcon,
   ChatBubbleLeftRightIcon,
   ClockIcon,
-  Squares2X2Icon 
+  Squares2X2Icon
 } from '@heroicons/react/24/outline';
 
 const Chat = () => {
   const { currentUser } = useAuth();
-  const { 
-    selectedCategory, 
-    setSelectedCategory, 
-    isProfessional, 
+  const {
+    selectedCategory,
+    setSelectedCategory,
+    isProfessional,
     loading: contextLoading,
-    refreshChatRooms 
+    refreshChatRooms,
+    activeChatRooms
   } = useProfessionalChat();
-  
+
   const [activeTab, setActiveTab] = useState('categories'); // 'categories', 'chats', 'requests'
   const [activeChatRoom, setActiveChatRoom] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -66,9 +67,19 @@ const Chat = () => {
   };
 
   const handleRequestResponded = async (chatRoomId) => {
-    // Refresh chat rooms and switch to chats tab
+    // 1. Refresh chat rooms list (this will include the newly created one)
     await refreshChatRooms();
-    setActiveTab('chats');
+
+    // 2. Find the newly created chat room from the refreshed list
+    const newRoom = activeChatRooms.find(room => room.id === chatRoomId);
+
+    if (newRoom) {
+      setActiveTab('chats'); // Switch to chats tab
+      handleOpenChat(newRoom); // Open the new chat window immediately
+    } else {
+      // Fallback: if not found immediately, just switch to chats tab
+      setActiveTab('chats');
+    }
   };
 
   if (contextLoading) {
@@ -99,9 +110,9 @@ const Chat = () => {
   // If chat window is open, show full screen chat
   if (activeChatRoom) {
     return (
-      <ProfessionalChatWindow 
-        chatRoom={activeChatRoom} 
-        onClose={handleCloseChat} 
+      <ProfessionalChatWindow
+        chatRoom={activeChatRoom}
+        onClose={handleCloseChat}
       />
     );
   }
@@ -128,11 +139,10 @@ const Chat = () => {
         {!isProfessional && (
           <button
             onClick={() => setActiveTab('categories')}
-            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all ${
-              activeTab === 'categories'
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all ${activeTab === 'categories'
                 ? 'text-primary-600 border-b-2 border-primary-600'
                 : 'text-gray-600 hover:text-primary-600'
-            }`}
+              }`}
           >
             <Squares2X2Icon className="w-5 h-5" />
             <span>Find Professionals</span>
@@ -141,11 +151,10 @@ const Chat = () => {
 
         <button
           onClick={() => setActiveTab('chats')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all ${
-            activeTab === 'chats'
+          className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all ${activeTab === 'chats'
               ? 'text-primary-600 border-b-2 border-primary-600'
               : 'text-gray-600 hover:text-primary-600'
-          }`}
+            }`}
         >
           <ChatBubbleLeftRightIcon className="w-5 h-5" />
           <span>{isProfessional ? 'My Clients' : 'My Chats'}</span>
@@ -154,11 +163,10 @@ const Chat = () => {
         {isProfessional && (
           <button
             onClick={() => setActiveTab('requests')}
-            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all ${
-              activeTab === 'requests'
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all ${activeTab === 'requests'
                 ? 'text-primary-600 border-b-2 border-primary-600'
                 : 'text-gray-600 hover:text-primary-600'
-            }`}
+              }`}
           >
             <ClockIcon className="w-5 h-5" />
             <span>Pending Requests</span>
@@ -170,7 +178,7 @@ const Chat = () => {
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'categories' && !isProfessional && (
           selectedCategory ? (
-            <ProfessionalList 
+            <ProfessionalList
               categoryId={selectedCategory}
               onBack={handleBackToCategories}
             />

@@ -44,7 +44,8 @@ const PendingRequestsPanel = ({ onRequestResponded }) => {
     setRespondingTo(requestId);
 
     try {
-      const result = await respondToChatRequest(requestId, accept);
+      // const result = await respondToChatRequest(requestId, accept);
+      const result = await respondToChatRequest(requestId, accept ? 'accepted' : 'rejected', currentUser.uid);
 
       if (accept && result.chatRoomId) {
         toast.success('Chat request accepted!');

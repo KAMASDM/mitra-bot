@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NewspaperIcon, ArrowTopRightOnSquareIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-// import { fetchCommunityNews, getRelativeTime } from '../../services/newsService';
+import { fetchCommunityNews, getRelativeTime } from '../../services/newsApiService';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -9,7 +9,7 @@ const News = () => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const articlesPerPage = 5;
+  const articlesPerPage = 6;
 
   useEffect(() => {
     loadNews();
@@ -147,63 +147,66 @@ const News = () => {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 py-6">
-                <button
-                  onClick={handlePrevPage}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronLeftIcon className="w-5 h-5" />
-                </button>
+              <div className="lg:col-span-2 space-y-4 py-6">
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronLeftIcon className="w-5 h-5" />
+                  </button>
 
-                <div className="flex items-center gap-1">
-                  {[...Array(totalPages)].map((_, index) => {
-                    const pageNum = index + 1;
-                    // Show first, last, current, and adjacent pages
-                    if (
-                      pageNum === 1 ||
-                      pageNum === totalPages ||
-                      (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                    ) {
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => handlePageClick(pageNum)}
-                          className={`min-w-[40px] h-10 rounded-lg font-medium transition-all ${currentPage === pageNum
+                  <div className="flex items-center gap-1">
+                    {[...Array(totalPages)].map((_, index) => {
+                      const pageNum = index + 1;
+
+                      if (
+                        pageNum === 1 ||
+                        pageNum === totalPages ||
+                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageClick(pageNum)}
+                            className={`min-w-[40px] h-10 rounded-lg font-medium transition-all ${currentPage === pageNum
                               ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
                               : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                            }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    } else if (
-                      pageNum === currentPage - 2 ||
-                      pageNum === currentPage + 2
-                    ) {
-                      return (
-                        <span key={pageNum} className="px-2 text-gray-400">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
-                  })}
-                </div>
+                              }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      } else if (
+                        pageNum === currentPage - 2 ||
+                        pageNum === currentPage + 2
+                      ) {
+                        return (
+                          <span key={pageNum} className="px-2 text-gray-400">
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
 
-                <button
-                  onClick={handleNextPage}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronRightIcon className="w-5 h-5" />
-                </button>
+                  <button
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronRightIcon className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             )}
 
+
             {/* Page Info */}
             {totalPages > 1 && (
-              <div className="text-center text-sm text-gray-500 pb-4">
+              <div className="text-center text-sm text-gray-500 pb-4 lg:col-span-2">
                 {t('showing')} {indexOfFirstArticle + 1}-{Math.min(indexOfLastArticle, articles.length)} {t('of')} {articles.length} {t('articles')}
               </div>
             )}
