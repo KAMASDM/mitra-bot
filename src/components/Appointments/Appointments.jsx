@@ -195,9 +195,9 @@ const SlotCreationModal = ({ isOpen, onClose, professionalId, selectedDate, slot
 
 const CalendarModalContent = ({ professional, user, isEditable, onClose }) => {
     // Current date is forced to Nov 18, 2025 for design matching
-    const todayReference = new Date(2025, 10, 18);
-    const [currentMonth, setCurrentMonth] = useState(startOfMonth(todayReference));
-    const [selectedDate, setSelectedDate] = useState(todayReference);
+    // const todayReference = new Date(2025, 10, 18);
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(new Date());
 
     // --- START DYNAMIC STATE & EFFECTS ---
     const { currentUser } = useAuth();
@@ -620,25 +620,11 @@ const Appointments = () => {
         return () => unsubscribe(); 
     }, [user?.user?.id, currentUser?.uid]); // Depend on both for robust useEffect trigger
 
-    // 2. FIX: Updated Memo with Consistent Date Comparison (Use current local time to check 'today')
-    const todayAppointments = useMemo(() => {       
-        const todayRef = new Date(2025, 10, 18);
-        const todayString = todayRef.toDateString();
-
-        return bookings
-            .filter(b => {
-                // Use .toDateString() for comparison, ensuring only the date part is checked
-                const apptDate = b.appointmentDate instanceof Date
-                    ? b.appointmentDate.toDateString()
-                    : new Date(b.appointmentDate).toDateString();
-
-                return apptDate === todayString;
-            })
-            // Sort by the full Date object (which includes the time) for correct order
-            .sort((a, b) => a.appointmentDate.getTime() - b.appointmentDate.getTime());
-    }, [bookings]);
-    // --- END FIX ---
-
+  const todayAppointments = useMemo(() => {
+    const today = new Date().toDateString();
+    // Filter the full list of bookings to only include those for today's date
+    return bookings.filter(b => b.appointmentDate.toDateString() === today);
+  }, [bookings]);
 
     // 3. Updated Action Handlers (using real service)
     const handleAcceptAppointment = async (appointmentId) => {
