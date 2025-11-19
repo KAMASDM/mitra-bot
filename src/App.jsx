@@ -113,7 +113,7 @@ function AppContent() {
            <Route path="/appointments" element={
             <ProtectedRoute>
               <Layout>
-                <Appointments />
+                <ProfessionalDashboard />
               </Layout>
             </ProtectedRoute>
           } />

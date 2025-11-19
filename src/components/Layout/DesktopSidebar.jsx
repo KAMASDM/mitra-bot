@@ -1,9 +1,9 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { 
-  HomeIcon, 
-  NewspaperIcon, 
-  UserGroupIcon, 
+import React, { useState, useEffect } from 'react';
+import { NavLink } from 'react-router-dom'; 
+import {
+  HomeIcon,
+  NewspaperIcon,
+  UserGroupIcon,
   ChatBubbleLeftRightIcon,
   BookOpenIcon,
   Cog6ToothIcon,
@@ -21,11 +21,26 @@ import {
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { checkIfUserIsProfessional } from '../../services/chatService';
 
 const DesktopSidebar = () => {
   const { t } = useLanguage();
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  // const location = useLocation();
+  const [isProfessionalUser, setIsProfessionalUser] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.uid) {
+      const checkRole = async () => {
+        const isProf = await checkIfUserIsProfessional(currentUser.uid);
+        setIsProfessionalUser(isProf);
+      };
+      checkRole();
+    } else {
+      setIsProfessionalUser(false);
+    }
+  }, [currentUser]);
 
   const handleLogout = async () => {
     try {
@@ -56,14 +71,15 @@ const DesktopSidebar = () => {
       icon: UserGroupIcon,
       activeIcon: UserGroupIconSolid,
       label: t('professionals'),
-      color: 'text-pink-600'
-    },    
+      color: 'text-pink-600',
+      hideOnProfessionalRoute: true,
+    },
     {
       path: '/appointments',
       icon: CalendarDaysIcon,
       activeIcon: CalendarDaysIcon,
       label: t('appointments'),
-      color: 'text-blue-600'
+      color: 'text-blue-600',
     },
     {
       path: '/chat',
@@ -96,15 +112,20 @@ const DesktopSidebar = () => {
     }
   ];
 
+  const filteredMainNavItems = mainNavItems.filter(item => { 
+      return !item.hideOnProfessionalRoute || !isProfessionalUser;
+  });
+
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-72 bg-gradient-to-b from-primary-50 to-secondary-50 border-r border-gray-200 h-screen sticky top-0">
       {/* Logo & Brand */}
       <div className="p-6 border-b border-gray-200">
+        {/* ... (rest of the logo/brand code is the same) */}
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-100 to-secondary-100 flex items-center justify-center shadow-lg">
-            <img 
-              src="/mitra.png" 
-              alt="Mitra Logo" 
+            <img
+              src="/mitra.png"
+              alt="Mitra Logo"
               className="w-10 h-10 rounded-xl"
               onError={(e) => {
                 e.target.style.display = 'none';
@@ -129,9 +150,9 @@ const DesktopSidebar = () => {
         <div className="p-4 mx-4 mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
             {currentUser.photoURL ? (
-              <img 
-                src={currentUser.photoURL} 
-                alt="Profile" 
+              <img
+                src={currentUser.photoURL}
+                alt="Profile"
                 className="w-12 h-12 rounded-full object-cover ring-2 ring-primary-200"
               />
             ) : (
@@ -154,15 +175,14 @@ const DesktopSidebar = () => {
       {/* Main Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         <div className="space-y-1">
-          {mainNavItems.map((item) => (
+          {filteredMainNavItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-white shadow-md text-primary-700 font-medium'
-                    : 'text-gray-700 hover:bg-white/50 hover:shadow-sm'
+                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
+                  ? 'bg-white shadow-md text-primary-700 font-medium'
+                  : 'text-gray-700 hover:bg-white/50 hover:shadow-sm'
                 }`
               }
             >
@@ -195,10 +215,9 @@ const DesktopSidebar = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-white shadow-md text-primary-700 font-medium'
-                    : 'text-gray-700 hover:bg-white/50 hover:shadow-sm'
+                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
+                  ? 'bg-white shadow-md text-primary-700 font-medium'
+                  : 'text-gray-700 hover:bg-white/50 hover:shadow-sm'
                 }`
               }
             >

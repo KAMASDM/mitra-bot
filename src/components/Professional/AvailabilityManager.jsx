@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Import React for fragments/hooks
 import { useAuth } from '../../contexts/AuthContext';
+
 import {
   PlusIcon,
   TrashIcon,
@@ -39,6 +40,8 @@ const AvailabilityManager = () => {
   const [location, setLocation] = useState('');
   const [price, setPrice] = useState('');
   const [selectedDays, setSelectedDays] = useState([]);
+  // NEW: State for Slot Title (introduced from Appointments logic)
+  const [title, setTitle] = useState('Online Consultation');
 
   const daysOfWeek = [
     { id: 0, name: 'Sunday', short: 'Sun' },
@@ -85,71 +88,129 @@ const AvailabilityManager = () => {
 
   const handleAddSlots = async () => {
     if (!professional) return;
+    
+    // Check if professional ID is present (similar to your modal logic)
+    const professionalId = professional.id || professional.uid;
 
+    if (!professionalId) {
+        toast.error('Professional ID not found. Please log in as a professional.');
+        return;
+    }
+
+    // Basic form validation for common required fields
+    if (selectedTimes.length === 0 || !price) {
+        toast.error('Please select time slots and set a price.');
+        return;
+    }
+
+    // Validation for dates (specific to single/recurring)
+    if (slotType === 'single' && !date) {
+        toast.error('Please select a date.');
+        return;
+    }
+    if (slotType === 'recurring' && (!startDate || !endDate || selectedDays.length === 0)) {
+        toast.error('Please fill start date, end date, and select days for recurring slots.');
+        return;
+    }
+    
+    setLoading(true);
     try {
+      let slotsToCreate = [];      
+      const numericPrice = parseFloat(price) || 0;
+      
+      // --- SINGLE DAY SLOT CREATION (UPDATED PAYLOAD) ---
       if (slotType === 'single') {
-        // Single day slots
-        if (!date || selectedTimes.length === 0) {
-          toast.error('Please select date and time slots');
+        const dateOnly = date; // 'YYYY-MM-DD' string
+        
+        // CRITICAL VALIDATION for single day: prevent Invalid Date
+        const testDate = new Date(dateOnly);
+        if (isNaN(testDate.getTime())) {
+          toast.error('Invalid date selected. Please use a valid future date.');
+          setLoading(false);
           return;
         }
 
-        const slotsToCreate = selectedTimes.map(time => {
+        slotsToCreate = selectedTimes.map(time => {
           const [hours, minutes] = time.split(':');
-          const startDateTime = new Date(date);
+          const startDateTime = new Date(dateOnly);
           startDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
           
           const endDateTime = new Date(startDateTime);
           endDateTime.setMinutes(endDateTime.getMinutes() + duration);
 
           return {
+            professional_id: professionalId,
+            title: title, // Using new 'title' state
             start_date: startDateTime,
             end_date: endDateTime,
-            duration,
+            duration: duration,
             type: locationType,
             location: locationType === 'in-person' ? location : 'Online',
-            price: parseFloat(price) || professional.hourly_rate || professional.fee || 0
+            price: numericPrice,
+            is_booked: false, // Added from Appointments logic
+            is_cancelled: false, // Added from Appointments logic
           };
         });
 
-        await createBulkAvailabilitySlots(professional.id, slotsToCreate);
-        toast.success(`${slotsToCreate.length} slots added successfully`);
+      // --- RECURRING SLOT CREATION (UPDATED PAYLOAD) ---
       } else {
-        // Recurring slots
-        if (!startDate || !endDate || selectedTimes.length === 0 || selectedDays.length === 0) {
-          toast.error('Please fill all required fields');
+        // Validate recurring dates gracefully (using toast.error instead of throw)
+        const sd = new Date(startDate);
+        const ed = new Date(endDate);
+        if (isNaN(sd.getTime()) || isNaN(ed.getTime())) {
+          toast.error('Invalid start or end date for recurring slots.');
+          setLoading(false);
+          return;
+        }
+        if (sd > ed) {
+          toast.error('Start date must be before or equal to end date for recurring slots.');
+          setLoading(false);
           return;
         }
 
-        const recurringSlots = generateRecurringSlots(
+        // generateRecurringSlots utility function handles the heavy lifting
+        slotsToCreate = generateRecurringSlots(
           startDate,
           endDate,
           selectedTimes,
           selectedDays,
           {
-            duration,
+            professional_id: professionalId,
+            title: title, // preserve title if provided
+            duration: duration,
             type: locationType,
             location: locationType === 'in-person' ? location : 'Online',
-            price: parseFloat(price) || professional.hourly_rate || professional.fee || 0
+            price: numericPrice,
+            is_booked: false,
+            is_cancelled: false,
           }
         );
-
-        await createBulkAvailabilitySlots(professional.id, recurringSlots);
-        toast.success(`${recurringSlots.length} recurring slots added successfully`);
       }
 
-      // Reset form
+      if (slotsToCreate.length === 0) {
+        // Consolidated final check
+        throw new Error('No slots were generated. Check the selected date range, days, and times.');
+      }
+
+      // Final service call (using createBulkAvailabilitySlots as originally intended)
+      await createBulkAvailabilitySlots(professionalId, slotsToCreate);
+      toast.success(`${slotsToCreate.length} slot${slotsToCreate.length !== 1 ? 's' : ''} added successfully`);
+
+      // Reset form and reload data for UI refresh
       resetForm();
       loadData();
     } catch (error) {
       console.error('Error adding slots:', error);
-      toast.error('Failed to add slots');
+      toast.error(`Failed to add slots: ${error.message || 'Check console for details.'}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteSlot = async (slotId) => {
     try {
-      await deleteAvailabilitySlot(slotId);
+      // NOTE: Using the generic deleteAvailabilitySlot, ensure this points to the correct collection in professionalService
+      await deleteAvailabilitySlot(slotId); 
       toast.success('Slot deleted');
       loadData();
     } catch (error) {
@@ -165,6 +226,7 @@ const AvailabilityManager = () => {
     setEndDate('');
     setSelectedTimes([]);
     setSelectedDays([]);
+    setTitle('Online Consultation'); // Reset title
   };
 
   const toggleDay = (dayId) => {
@@ -244,6 +306,23 @@ const AvailabilityManager = () => {
                 >
                   Recurring
                 </button>
+              </div>
+
+              {/* Title Input (NEW) */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Slot Title
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g., Online Consultation"
+                  className="
+                    w-full px-4 py-2 rounded-lg
+                    border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200
+                  "
+                />
               </div>
 
               {/* Date Selection */}
@@ -435,7 +514,7 @@ const AvailabilityManager = () => {
               {/* Submit Button */}
               <button
                 onClick={handleAddSlots}
-                disabled={selectedTimes.length === 0}
+                disabled={loading} 
                 className="
                   w-full flex items-center justify-center gap-2
                   bg-indigo-500 text-white px-6 py-3 rounded-xl
@@ -446,7 +525,7 @@ const AvailabilityManager = () => {
                 "
               >
                 <PlusIcon className="w-5 h-5" />
-                Add {selectedTimes.length} Slot{selectedTimes.length !== 1 ? 's' : ''}
+                Add Slot
               </button>
             </div>
           )}
@@ -487,7 +566,7 @@ const AvailabilityManager = () => {
   );
 };
 
-// Slot Card Component
+// Slot Card Component (Internal Component)
 const SlotCard = ({ slot, onDelete }) => {
   const formatDateTime = (date) => {
     if (!date) return '';
@@ -513,9 +592,9 @@ const SlotCard = ({ slot, onDelete }) => {
           <div className="flex items-center gap-2 mb-2">
             <span className={`
               px-2 py-1 rounded-full text-xs font-medium border
-              ${statusColors[slot.status] || statusColors.available}
+              ${statusColors[slot.status] || (slot.is_booked ? statusColors.booked : statusColors.available)}
             `}>
-              {slot.status?.toUpperCase() || 'AVAILABLE'}
+              {(slot.status || (slot.is_booked ? 'BOOKED' : 'AVAILABLE')).toUpperCase()}
             </span>
             {slot.type === 'online' ? (
               <span className="text-xs text-gray-600 flex items-center gap-1">
@@ -540,7 +619,8 @@ const SlotCard = ({ slot, onDelete }) => {
           )}
         </div>
         
-        {slot.status === 'available' && (
+        {/* Check if slot is NOT booked or cancelled before showing delete */}
+        {!slot.is_booked && !slot.is_cancelled && (
           <button
             onClick={onDelete}
             className="text-red-500 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"

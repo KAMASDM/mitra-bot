@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState, useEffect } from 'react'; 
+import { NavLink } from 'react-router-dom'; 
 import { 
   HomeIcon, 
   MagnifyingGlassIcon, 
@@ -16,12 +16,28 @@ import {
 } from '@heroicons/react/24/solid';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { ChatContext } from '../../contexts/ChatContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { checkIfUserIsProfessional } from '../../services/chatService';
 
 const BottomNavigation = () => {
   const { t } = useLanguage();
-  // Safely get chat context - it might not be available on all routes
   const chatContext = React.useContext(ChatContext);
   const connectionRequests = chatContext?.connectionRequests || [];
+  // const location = useLocation(); 
+  const { currentUser } = useAuth();
+
+  const [isProfessionalUser, setIsProfessionalUser] = useState(false);
+    useEffect(() => {
+    if (currentUser?.uid) {
+      const checkRole = async () => {
+        const isProf = await checkIfUserIsProfessional(currentUser.uid); 
+        setIsProfessionalUser(isProf);
+      };
+      checkRole();
+    } else {
+      setIsProfessionalUser(false);
+    }
+  }, [currentUser]);
 
   const navItems = [
     {
@@ -34,7 +50,8 @@ const BottomNavigation = () => {
       path: '/services',
       label: t('professionals'),
       icon: MagnifyingGlassIcon,
-      activeIcon: MagnifyingGlassIconSolid
+      activeIcon: MagnifyingGlassIconSolid,
+      hideOnProfessionalRoute: true, 
     },
     {
       path: '/',
@@ -58,10 +75,14 @@ const BottomNavigation = () => {
     }
   ];
 
+  const filteredNavItems = navItems.filter(item => { 
+      return !item.hideOnProfessionalRoute || !isProfessionalUser;
+  });
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 to-white border-t border-gray-200 bottom-nav max-w-mobile mx-auto shadow-[0_-2px_10px_rgba(0,0,0,0.1)]" style={{ zIndex: 9999 }}>
       <div className="flex items-center justify-around py-3 px-2">
-        {navItems.map((item) => (
+        {filteredNavItems.map((item) => ( 
           <NavLink
             key={item.path}
             to={item.path}

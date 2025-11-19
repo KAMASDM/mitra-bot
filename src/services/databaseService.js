@@ -414,25 +414,29 @@ export const updateUserProfile = async (userId, userData) => {
 
 export const getProfessionalAvailability = async (professionalId, startDate, endDate) => {
   try {
-    const q = query(
-      collection(db, 'availabilitySlots'),
-      where('professional_id', '==', professionalId),
-      // where('is_booked', '==', false),     
-      // where('is_cancelled', '==', false),
-      where('start_date', '>=', startDate),
-      where('start_date', '<=', endDate),
-      orderBy('start_date', 'asc')
-    );
+        // 2. Convert JS Date objects to Firestore Timestamps for the query boundaries
+        const startTimestamp = Timestamp.fromDate(startDate);
+        const endTimestamp = Timestamp.fromDate(endDate);
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-  } catch (error) {
-    console.error('Error getting professional availability:', error);
-    throw error;
-  }
+        const q = query(
+            collection(db, 'availabilitySlots'),
+            where('professional_id', '==', professionalId),
+            // where('is_booked', '==', false),     
+            // where('is_cancelled', '==', false),
+            where('start_date', '>=', startTimestamp), // 3. Use startTimestamp
+            where('start_date', '<=', endTimestamp),   // 4. Use endTimestamp
+            orderBy('start_date', 'asc')
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error('Error getting professional availability:', error);
+        throw error;
+    }
 };
 
 export const updateSlotStatus = async (slotId, statusUpdate) => {

@@ -741,7 +741,7 @@ const Appointments = () => {
                                         <div className="flex space-x-3 mb-2 sm:mb-0">
                                             <span className="flex items-center text-sm text-gray-700 bg-gray-200 px-3 py-1 rounded-full">
                                                 <ClockIcon className="w-4 h-4 mr-1 text-gray-600" />
-                                                {displayTime} ({appointment.duration || 60} min)
+                                                {displayTime} ({appointment.duration} min)
                                             </span>
                                             <span className="flex items-center text-sm text-gray-700 bg-gray-200 px-3 py-1 rounded-full">
                                                 <SessionIcon className="w-4 h-4 mr-1 text-gray-600" />

@@ -354,13 +354,17 @@ export const getAvailabilitySlots = async (professionalId, filters = {}) => {
  */
 export const createAvailabilitySlot = async (slotData) => {
   try {
+    // Convert JS Date objects to Firestore Timestamps before saving
     const slotPayload = {
       ...slotData,
+      start_date: Timestamp.fromDate(slotData.start_date),
+      end_date: Timestamp.fromDate(slotData.end_date),
       created_at: Timestamp.now(), // Use Firestore Timestamp for creation date
-      is_cancelled: false,
+      is_cancelled: slotData.is_cancelled || false,
+      is_booked: slotData.is_booked || false,
     };
 
-    const docRef = await addDoc(collection(db, 'availabilitySlots'), slotPayload);
+    const docRef = await addDoc(collection(db, AVAILABILITY_SLOTS_COLLECTION), slotPayload);
     console.log("Successfully saved event to Firestore with ID:", docRef.id);
     return { success: true, id: docRef.id };
 
@@ -374,13 +378,23 @@ export const createAvailabilitySlot = async (slotData) => {
  */
 export const createBulkAvailabilitySlots = async (professionalId, slots) => {
   try {
-    const promises = slots.map(slot => createAvailabilitySlot(professionalId, slot));
-    return await Promise.all(promises);
+    // Use Promise.all to map and execute multiple single slot creations
+    const promises = slots.map(slot => createAvailabilitySlot(slot)); 
+    const results = await Promise.all(promises);
+
+    // Check for any failures in the bulk operation
+    const failed = results.filter(r => !r.success);
+    if (failed.length > 0) {
+      console.warn(`Bulk slot creation had ${failed.length} failure(s).`);
+    }
+
+    return { success: true, count: slots.length, failures: failed.length };
   } catch (error) {
     console.error('Error creating bulk availability slots:', error);
     throw error;
   }
 };
+
 
 /**
  * Update availability slot
@@ -417,14 +431,19 @@ export const deleteAvailabilitySlot = async (slotId) => {
 export const generateRecurringSlots = (startDate, endDate, timeSlots, daysOfWeek, slotConfig) => {
   const slots = [];
   const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0); 
+  
   const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999); 
 
-  while (current <= end) {
-    const dayOfWeek = current.getDay(); // 0 = Sunday, 6 = Saturday
+  while (current.getTime() <= end.getTime()) {
+    const dayOfWeek = current.getDay();
     
     if (daysOfWeek.includes(dayOfWeek)) {
       timeSlots.forEach(timeSlot => {
         const [hours, minutes] = timeSlot.split(':');
+        
+        // Clone 'current' date and set time
         const slotStart = new Date(current);
         slotStart.setHours(parseInt(hours), parseInt(minutes), 0, 0);
         
@@ -432,16 +451,22 @@ export const generateRecurringSlots = (startDate, endDate, timeSlots, daysOfWeek
         slotEnd.setMinutes(slotEnd.getMinutes() + (slotConfig.duration || 60));
         
         slots.push({
+          professional_id: slotConfig.professional_id,
+          title: slotConfig.title || 'Available Slot', 
+          is_booked: slotConfig.is_booked || false, 
+          is_cancelled: slotConfig.is_cancelled || false, 
+          
           start_date: slotStart,
           end_date: slotEnd,
           duration: slotConfig.duration || 60,
           type: slotConfig.type || 'online',
-          location: slotConfig.location || '',
+          location: slotConfig.location || 'Online',
           price: slotConfig.price || 0
         });
       });
     }
     
+    // Move to the next day
     current.setDate(current.getDate() + 1);
   }
 
