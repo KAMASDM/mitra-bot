@@ -81,26 +81,40 @@ const Services = () => {
     if (!professionalId) return [];
     try {
       const today = new Date();
-      // Set the start of today and end of today for precise query
-      const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-      const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+      // FIX 1: Calculate 7-day range accurately
+      const startOfToday = new Date(today);
+      startOfToday.setHours(0, 0, 0, 0); 
+      
+      const nextWeek = new Date();
+      nextWeek.setDate(today.getDate() + 7);
+      const endOfNextWeek = new Date(nextWeek);
+      endOfNextWeek.setHours(23, 59, 59, 999);
 
-      const availableSlots = await getProfessionalAvailability(
+      const allSlots = await getProfessionalAvailability(
         professionalId,
         startOfToday,
-        endOfToday
+        endOfNextWeek
       ); 
 
-      // Filter out past slots, booked slots, and cancelled slots
-      const liveSlots = availableSlots.filter(slot => {
+      // FIX 2: Filter logic: Must be in the FUTURE AND NOT booked/cancelled
+      const liveSlots = allSlots.filter(slot => {
         const slotTime = slot.start_date.toDate ? slot.start_date.toDate() : new Date(slot.start_date);
-        const isToday = slotTime.toDateString() === new Date().toDateString();
-        // Check if the slot is still in the future AND not booked/cancelled
-        return isToday;
+        const isBookedOrCancelled = slot.is_booked || slot.is_cancelled;
+        const isFuture = slotTime > new Date(); 
+
+        // Return only available slots in the next 7 days
+        return isFuture && !isBookedOrCancelled;
       });
 
-      // Return the live slots formatted as time strings
-      return liveSlots.map(slot => slot.start_date.toDate().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+      // FIX 3: Return formatted slots including Day (e.g., Wed 10:00 AM)
+      // ProfessionalCard will receive up to 7 days of available slots and display the earliest 4.
+      return liveSlots.map(slot => {
+          const slotDate = slot.start_date.toDate();
+          // E: Short day name (e.g., Wed), hh:mm a: Time format
+          const dateLabel = format(slotDate, 'E hh:mm a'); 
+          return dateLabel;
+      });
+
     } catch (error) {
       console.error(`Error checking availability for ${professionalId}:`, error);
       return [];
@@ -274,7 +288,7 @@ const Services = () => {
         location: location,
         fee: fee,
         clientEmail: currentUser.email,
-        duration: slot.duration || 60,
+        duration: slot.duration,
       };
 
       const newBooking = await createBooking(bookingRecord); //

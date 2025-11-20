@@ -38,11 +38,11 @@ export const getProfessionalByUserId = async (userId) => {
       limit(1)
     );
     const snapshot = await getDocs(q);
-    
+
     if (snapshot.empty) {
       return null;
     }
-    
+
     const doc = snapshot.docs[0];
     return {
       id: doc.id,
@@ -76,7 +76,10 @@ export const updateProfessionalProfile = async (professionalId, data) => {
  */
 export const createProfessionalProfile = async (userId, profileData) => {
   try {
-    const docRef = await addDoc(collection(db, PROFESSIONALS_COLLECTION), {
+    const docRef = doc(db, PROFESSIONALS_COLLECTION, userId);
+
+    // 2. Use setDoc to create/overwrite the document with the specific ID
+    await setDoc(docRef, {
       userId,
       ...profileData,
       verification_status: 'pending',
@@ -85,7 +88,7 @@ export const createProfessionalProfile = async (userId, profileData) => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
-    return docRef.id;
+    return userId; 
   } catch (error) {
     console.error('Error creating professional profile:', error);
     throw error;
@@ -104,7 +107,7 @@ export const getDashboardStats = async (professionalId) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
-    
+
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
 
@@ -136,15 +139,15 @@ export const getDashboardStats = async (professionalId) => {
       where('status', '==', 'paid')
     );
     const earningsSnapshot = await getDocs(earningsQuery);
-    
+
     let monthlyEarnings = 0;
     let totalEarnings = 0;
-    
+
     earningsSnapshot.docs.forEach(doc => {
       const data = doc.data();
       const earningDate = data.paidAt?.toDate();
       totalEarnings += data.amount || 0;
-      
+
       if (earningDate && earningDate >= startOfMonth) {
         monthlyEarnings += data.amount || 0;
       }
@@ -379,7 +382,7 @@ export const createAvailabilitySlot = async (slotData) => {
 export const createBulkAvailabilitySlots = async (professionalId, slots) => {
   try {
     // Use Promise.all to map and execute multiple single slot creations
-    const promises = slots.map(slot => createAvailabilitySlot(slot)); 
+    const promises = slots.map(slot => createAvailabilitySlot(slot));
     const results = await Promise.all(promises);
 
     // Check for any failures in the bulk operation
@@ -431,31 +434,31 @@ export const deleteAvailabilitySlot = async (slotId) => {
 export const generateRecurringSlots = (startDate, endDate, timeSlots, daysOfWeek, slotConfig) => {
   const slots = [];
   const current = new Date(startDate);
-  current.setHours(0, 0, 0, 0); 
-  
+  current.setHours(0, 0, 0, 0);
+
   const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999); 
+  end.setHours(23, 59, 59, 999);
 
   while (current.getTime() <= end.getTime()) {
     const dayOfWeek = current.getDay();
-    
+
     if (daysOfWeek.includes(dayOfWeek)) {
       timeSlots.forEach(timeSlot => {
         const [hours, minutes] = timeSlot.split(':');
-        
+
         // Clone 'current' date and set time
         const slotStart = new Date(current);
         slotStart.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        
+
         const slotEnd = new Date(slotStart);
         slotEnd.setMinutes(slotEnd.getMinutes() + (slotConfig.duration || 60));
-        
+
         slots.push({
           professional_id: slotConfig.professional_id,
-          title: slotConfig.title || 'Available Slot', 
-          is_booked: slotConfig.is_booked || false, 
-          is_cancelled: slotConfig.is_cancelled || false, 
-          
+          title: slotConfig.title || 'Available Slot',
+          is_booked: slotConfig.is_booked || false,
+          is_cancelled: slotConfig.is_cancelled || false,
+
           start_date: slotStart,
           end_date: slotEnd,
           duration: slotConfig.duration || 60,
@@ -465,7 +468,7 @@ export const generateRecurringSlots = (startDate, endDate, timeSlots, daysOfWeek
         });
       });
     }
-    
+
     // Move to the next day
     current.setDate(current.getDate() + 1);
   }
@@ -536,7 +539,7 @@ export const getSessionNotes = async (professionalId, bookingId) => {
       where('professionalId', '==', professionalId),
       where('bookingId', '==', bookingId)
     );
-    
+
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
       id: doc.id,
@@ -598,7 +601,7 @@ export const getProfessionalDocuments = async (professionalId) => {
       where('professionalId', '==', professionalId),
       orderBy('uploadedAt', 'desc')
     );
-    
+
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
       id: doc.id,
@@ -647,10 +650,10 @@ export const getBookingAnalytics = async (professionalId, startDate, endDate) =>
       where('date', '>=', startDate),
       where('date', '<=', endDate)
     );
-    
+
     const snapshot = await getDocs(q);
     const bookings = snapshot.docs.map(doc => doc.data());
-    
+
     const analytics = {
       totalBookings: bookings.length,
       confirmedBookings: bookings.filter(b => b.status === 'confirmed').length,
@@ -659,7 +662,7 @@ export const getBookingAnalytics = async (professionalId, startDate, endDate) =>
       pendingBookings: bookings.filter(b => b.status === 'pending').length,
       bookingsByDate: {}
     };
-    
+
     // Group by date
     bookings.forEach(booking => {
       if (!analytics.bookingsByDate[booking.date]) {
@@ -667,7 +670,7 @@ export const getBookingAnalytics = async (professionalId, startDate, endDate) =>
       }
       analytics.bookingsByDate[booking.date]++;
     });
-    
+
     return analytics;
   } catch (error) {
     console.error('Error getting booking analytics:', error);
@@ -680,10 +683,10 @@ export default {
   getProfessionalByUserId,
   updateProfessionalProfile,
   createProfessionalProfile,
-  
+
   // Dashboard
   getDashboardStats,
-  
+
   // Bookings
   getProfessionalBookings,
   subscribeToProfessionalBookings,
@@ -692,7 +695,7 @@ export default {
   rejectBooking,
   completeBooking,
   cancelBooking,
-  
+
   // Availability
   getAvailabilitySlots,
   createAvailabilitySlot,
@@ -700,20 +703,20 @@ export default {
   updateAvailabilitySlot,
   deleteAvailabilitySlot,
   generateRecurringSlots,
-  
+
   // Earnings
   getEarnings,
   createEarning,
-  
+
   // Notes
   getSessionNotes,
   createSessionNote,
   updateSessionNote,
-  
+
   // Documents
   getProfessionalDocuments,
   uploadProfessionalDocument,
-  
+
   // Analytics
   getBookingAnalytics
 };

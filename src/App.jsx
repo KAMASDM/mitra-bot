@@ -24,7 +24,7 @@ import AppointmentsCalendar from './components/Professional/AppointmentsCalendar
 import AvailabilityManager from './components/Professional/AvailabilityManager';
 import ProfessionalRegistration from './components/Professional/ProfessionalRegistration';
 import './App.css';
-import Appointments from './components/Appointments/Appointments';
+// import Appointments from './components/Appointments/Appointments';
 
 const ProtectedRoute = ({ children }) => {
   const { currentUser } = useAuth();
@@ -134,9 +134,9 @@ function AppContent() {
 
           {/* Professional Routes */}
           <Route path="/professional/register" element={
-            <ProtectedRoute>
+            <PublicRoute>
               <ProfessionalRegistration />
-            </ProtectedRoute>
+            </PublicRoute>
           } />
           <Route path="/professional/dashboard" element={
             <ProtectedRoute>
